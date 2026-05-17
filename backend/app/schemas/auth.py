@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Literal
 
 
-class RegisterRequest(BaseModel):
+class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     role: Literal["seller", "buyer"]
