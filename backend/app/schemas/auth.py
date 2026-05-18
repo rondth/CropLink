@@ -6,7 +6,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     role: Literal["seller", "buyer"]
-    full_name: str
+    name: str
 
 
 class LoginRequest(BaseModel):
@@ -18,7 +18,7 @@ class AuthResponse(BaseModel):
     user_id: str
     email: str
     role: str
-    full_name: str
+    name: str
     access_token: str
     refresh_token: str
 
