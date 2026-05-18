@@ -27,7 +27,7 @@ def signup(body: SignupRequest):
     # 2. Insert profile row with role + name
     try:
         supabase.table("profiles").insert({
-            "id": user.id,
+            "user_id": user.id,
             "email": body.email,
             "role": body.role,
             "name": body.name,
@@ -39,6 +39,10 @@ def signup(body: SignupRequest):
         )
 
     session = auth_response.session
+
+    if not session:
+        return MessageResponse(message="Signup successful! Please check your email to confirm your account.")
+
     return AuthResponse(
         user_id=user.id,
         email=body.email,
@@ -69,7 +73,7 @@ def login(body: LoginRequest):
     profile = (
         supabase.table("profiles")
         .select("role, name")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single()
         .execute()
     )
@@ -106,7 +110,7 @@ def refresh_token(body: RefreshRequest):
     profile = (
         supabase.table("profiles")
         .select("role, name")
-        .eq("id", user.id)
+        .eq("user_id", user.id)
         .single()
         .execute()
     )
@@ -139,7 +143,7 @@ def get_me(user: dict = Depends(get_current_user)):
     profile = (
         supabase.table("profiles")
         .select("*")
-        .eq("id", user_id)
+        .eq("user_id", user_id)
         .single()
         .execute()
     )

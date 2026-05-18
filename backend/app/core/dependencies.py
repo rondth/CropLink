@@ -1,9 +1,14 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
+from jose.backends import ECKey
+import json
 from app.core.config import settings
 
 bearer_scheme = HTTPBearer()
+
+# Load the JWKS public key
+jwks = json.loads(settings.supabase_jwt_public_key)  # your JWKS in .env
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
@@ -12,8 +17,8 @@ def get_current_user(
     try:
         payload = jwt.decode(
             token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
+            jwks,
+            algorithms=["ES256"],
             audience="authenticated",
         )
         return payload
