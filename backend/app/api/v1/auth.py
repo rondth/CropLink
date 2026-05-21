@@ -11,9 +11,15 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 def signup(body: SignupRequest):
     # 1. Create user in Supabase Auth
     try:
-        auth_response = supabase.auth.sign_up(
-            {"email": body.email, "password": body.password}
-        )
+        auth_response = supabase.auth.sign_up({
+            "email": body.email, 
+            "password": body.password,
+            "options": {
+                "data": {
+                    "role": body.role
+                }
+            }
+        })
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
