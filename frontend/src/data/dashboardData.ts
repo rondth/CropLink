@@ -34,7 +34,7 @@ export const SELLER_DASHBOARD_DATA = {
             quantity : 300,
             left : 200,
             price: 2.20,
-            unit: 'kg',
+            unit: 'lbs',
             color: '#4ade80'
         },
     ],
