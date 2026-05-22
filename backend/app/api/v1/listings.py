@@ -1,0 +1,104 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from app.core.dependencies import get_current_user, get_current_user_id
+from app.core.config import settings
+from supabase import create_client
+
+router = APIRouter(prefix="/listings", tags=["listings"])
+supabase = create_client(settings.supabase_url, settings.supabase_service_role_key)
+
+# SCHEMAS
+
+class ListingCreate(BaseModel):
+    crop_name: str
+    currency: str
+    price: float
+    unit_of_measurement: str
+    quantity: float
+    photo_url: Optional[str] = None
+    harvested_at: datetime
+    description: Optional[str] = None
+    location: str
+    min_order_quantity: float
+
+class ListingUpdate(BaseModel):
+    crop_name: Optional[str] = None
+    price: Optional[float] = None
+    quantity: Optional[float] = None
+    photo_url: Optional[str] = None
+    status: Optional[str] = None
+    harvested_at: Optional[datetime] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    min_order_quantity: Optional[float] = None
+
+# ENDPOINTS
+
+# POST /listings
+@router.post("/", status_code=status.HTTP_201_CREATED)
+def create_listing(
+    data: ListingCreate,
+    user_id: str = Depends(get_current_user_id),
+    user: dict = Depends(get_current_user)
+):
+    role = user.get("user_metadata", {}).get("role")
+    if role != "seller":
+        raise HTTPException(status_code=403, detail="Only sellers can create listings")
+    
+    dump = data.model_dump(exclude_none=True)
+
+    # Convert datetime to ISO string for Supabase
+    if "harvested_at" in dump:
+        dump["harvested_at"] = dump["harvested_at"].isoformat()
+
+    response = supabase.table("crops_listings").insert({
+        **dump,
+        "seller_id": user_id,
+        "status": "active"
+    }).execute()
+
+    return response.data[0]
+
+# GET /listings
+@router.get("/")
+def get_listings(user: dict = Depends(get_current_user)):
+    # Only filter for `status = active` listings that is relevant for the buyers
+    response = supabase.table("crops_listings").select("*").eq("status", "active").execute()
+    return response.data
+
+# GET /listings/{id}
+@router.get("/{listing_id}")
+def get_listings(listing_id: str, user: dict = Depends(get_current_user)):
+    response = supabase.table("crops_listings").select("*").eq("id", listing_id).single().execute()
+    
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    return response.data
+
+# PATCH /listings/{id}
+@router.patch("/{listing_id}")
+def update_listing(
+    listing_id: str,
+    data: ListingUpdate,
+    user_id: str = Depends(get_current_user_id),
+    user: dict = Depends(get_current_user)
+):
+    existing = supabase.table("crops_listings").select("*").eq("id", listing_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if existing.data[0]["seller_id"] != user_id:
+        raise HTTPException(status_code=403, detail="You can only edit your own listings")
+    
+    dump = data.model_dump(exclude_none=True)
+
+    if "harvested_at" in dump:
+        dump["harvested_at"] = dump["harvested_at"].isoformat()
+
+    if not dump:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    response = supabase.table("crops_listings").update(dump).eq("id", listing_id).execute()
+    return response.data[0]

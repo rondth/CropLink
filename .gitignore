@@ -82,4 +82,5 @@ logs/
 *.log
 .cache/
 .temp/
-tmp/
+tmp/__pycache__/
+*.pyc
