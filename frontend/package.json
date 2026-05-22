@@ -1,9 +1,5 @@
 {
-<<<<<<< Updated upstream
-    "name": "gainz-marketplace",
-=======
-  "name": "croplink-frontend",
->>>>>>> Stashed changes
+    "name": "croplink-frontend",
     "version": "0.1.0",
     "private": true,
     "scripts": {
