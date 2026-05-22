@@ -6,7 +6,7 @@ import SearchBar from '@/components/ui/SearchBar';
 
 export default function Category({ selectedCategory, onSelectCategory }: { selectedCategory: string; onSelectCategory: (id: string) => void }) {
     return (
-    <div className="bg-gainz-primary px-3 pt-1 pb-3.5 shrink-0 select-none">
+    <div className="bg-CropLink-primary px-3 pt-1 pb-3.5 shrink-0 select-none">
         {/* search bar */}
         <SearchBar />
         

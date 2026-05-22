@@ -20,7 +20,7 @@ function RevenueDetails({ onBack }: { onBack: () => void }) {
     return (
         <div className="p-4 pb-8 flex flex-col gap-4">
             <div className="px-1">
-                <button onClick={onBack} className="text-gainz-primary font-bold text-sm flex items-center gap-1 active:scale-95 transition-transform">
+                <button onClick={onBack} className="text-CropLink-primary font-bold text-sm flex items-center gap-1 active:scale-95 transition-transform">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     Dashboard
                 </button>
@@ -64,13 +64,13 @@ export default function Dashboard() {
         <div className="p-4 pb-8 flex flex-col gap-4">
             <div className="px-1">
                 <h2 className="text-xl font-black text-gray-800">Hello, {SELLER_DASHBOARD_DATA.sellerName}!</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Here's what's happening with your farm.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Here's what's happening with your crops.</p>
             </div>
 
             {/* stats */}
             <div className="grid grid-cols-2 gap-3">
                 {/* button to pie chart */}
-                <button onClick={() => setShowRevenueDetails(true)} className="bg-gainz-primary rounded-2xl p-4 text-white shadow-sm flex flex-col justify-between text-left active:scale-[0.98] transition-transform">
+                <button onClick={() => setShowRevenueDetails(true)} className="bg-CropLink-primary rounded-2xl p-4 text-white shadow-sm flex flex-col justify-between text-left active:scale-[0.98] transition-transform">
                     <p className="text-[10px] font-semibold opacity-80 mb-1">Monthly Revenue</p>
                     <h3 className="text-xl font-black mb-2">${SELLER_DASHBOARD_DATA.quickStats.monthlyRevenue.amount.toFixed(2)}</h3>
                     <span className="text-[9px] font-bold bg-white/20 inline-flex items-center px-1.5 py-1 rounded-md self-start">
@@ -112,7 +112,7 @@ export default function Dashboard() {
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-sm font-bold text-gray-800">Your Listings</h3>
-                    <span className="text-[10px] text-gainz-primary font-bold cursor-pointer hover:underline">
+                    <span className="text-[10px] text-CropLink-primary font-bold cursor-pointer hover:underline">
                         View All
                     </span>
                 </div>
@@ -127,7 +127,7 @@ export default function Dashboard() {
                                 <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.left}/${listing.quantity} ${listing.unit} available`}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs font-black text-gainz-primary">${listing.price.toFixed(2)}<span className="text-[9px] text-gray-400 font-medium">/{listing.unit}</span></p>
+                                <p className="text-xs font-black text-CropLink-primary">${listing.price.toFixed(2)}<span className="text-[9px] text-gray-400 font-medium">/{listing.unit}</span></p>
                             </div>
                         </div>
                     ))}
