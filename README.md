@@ -1,11 +1,18 @@
 # Croplink
 
 Frontend Setup :
+``` bash
+cd frontend
+npm install
+npm install lucide-react
+npm run dev
+```
 
-1. cd frontend
-2. npm install
-3. npm install lucide-react
-4. npm run dev
+Backend Setup : 
+``` bash
+cd backend
+uvicorn main:app ⁠
+```
 
 One of the key challenges facing farmers in growing their businesses is limited marketing capability and lack of access to a centralized platform for connecting with buyers. Many farmers still rely on fragmented, informal, or word-of-mouth channels to promote their products, which can restrict their visibility and make it difficult to reach suitable distributors. At the same time, distributors may also face difficulties in identifying reliable farmers and sourcing products efficiently. This lack of centralization creates inefficiencies in the buying and selling process, reduces trust between parties, and limits opportunities for both farmers and distributors to build sustainable business relationships.
 
