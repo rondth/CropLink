@@ -1,0 +1,25 @@
+{
+    "name": "croplink-frontend",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "dependencies": {
+        "lucide-react": "^0.284.0",
+        "next": "13.5.6",
+        "react": "18",
+        "react-dom": "18"
+    },
+    "devDependencies": {
+        "@types/node": "25.9.1",
+        "@types/react": "19.2.15",
+        "autoprefixer": "^10.4.16",
+        "postcss": "^8.4.31",
+        "tailwindcss": "^3.3.3",
+        "typescript": "6.0.3"
+    }
+}
