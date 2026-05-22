@@ -124,7 +124,7 @@ export default function Dashboard() {
 
                             <div className="flex-1">
                                 <h4 className="text-xs font-bold text-gray-800">{listing.name}</h4>
-                                <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.left}/${listing.quantity} kg available`}</p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.left}/${listing.quantity} ${listing.unit} available`}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs font-black text-gainz-primary">${listing.price.toFixed(2)}<span className="text-[9px] text-gray-400 font-medium">/{listing.unit}</span></p>
