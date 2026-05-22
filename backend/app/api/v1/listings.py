@@ -98,7 +98,7 @@ def update_listing(
         dump["harvested_at"] = dump["harvested_at"].isoformat()
 
     if not dump:
-        raise HTTPException(status_code=400, details="No fields to update")
+        raise HTTPException(status_code=400, detail="No fields to update")
     
     response = supabase.table("crops_listings").update(dump).eq("id", listing_id).execute()
     return response.data[0]
