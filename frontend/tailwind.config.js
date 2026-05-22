@@ -7,7 +7,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        gainz: {
+        CropLink: {
           bg: '#f0ece4',
           primary: '#2d5a27',
           primaryLight: '#a8d08a',
