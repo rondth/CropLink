@@ -22,7 +22,7 @@ export default function CropsListing() {
                     </div>
                     {/* currency */}
                     <div className="w-[100px]">
-                        <label htmlFor="currency" className="block text-xs font-bold text-gray-700 mb-1.5">Currency</label>
+                        <label htmlFor="currency" className="block text-xs font-bold text-gray-700 mb-1.5">Currency *</label>
                         <select id="currency" name="currency" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-gainz-primary focus:border-gainz-primary block p-2.5 outline-none transition-colors appearance-none">
                             <option value="BAHT">BAHT</option>
                             <option value="EUR">EUR</option>
@@ -42,7 +42,7 @@ export default function CropsListing() {
                     </div>
                     {/* unit_of_measurement */}
                     <div className="w-[100px]">
-                        <label htmlFor="unit" className="block text-xs font-bold text-gray-700 mb-1.5">Unit</label>
+                        <label htmlFor="unit" className="block text-xs font-bold text-gray-700 mb-1.5">Unit *</label>
                         <select id="unit" name="unit" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-gainz-primary focus:border-gainz-primary block p-2.5 outline-none transition-colors appearance-none">
                             <option value="kg">kg</option>
                             <option value="lbs">lbs</option>
@@ -59,14 +59,14 @@ export default function CropsListing() {
                 </div>
 
                 <div>
-                    {/* expired_date */}
-                    <label htmlFor="expired_at" className="block text-xs font-bold text-gray-700 mb-1.5">Expiration / Shelf Life *</label>
-                    <input required type="date" id="expired_at" name="expired_at" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-gainz-primary focus:border-gainz-primary block p-2.5 outline-none transition-colors" />
+                    {/* harvested_date */}
+                    <label htmlFor="harvested_at" className="block text-xs font-bold text-gray-700 mb-1.5">Harvested date *</label>
+                    <input required type="date" id="harvested_at" name="harvested_at" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-gainz-primary focus:border-gainz-primary block p-2.5 outline-none transition-colors" />
                 </div>
 
                 <div>
                     {/* location */}
-                    <label htmlFor="location" className="block text-xs font-bold text-gray-700 mb-1.5">Location / Farm *</label>
+                    <label htmlFor="location" className="block text-xs font-bold text-gray-700 mb-1.5">Location *</label>
                     <input required type="text" id="location" name="location" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-gainz-primary focus:border-gainz-primary block p-2.5 outline-none transition-colors" placeholder="e.g., Cebu City, Philippines" />
                 </div>
 
