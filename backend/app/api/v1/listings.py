@@ -13,6 +13,7 @@ supabase = create_client(settings.supabase_url, settings.supabase_service_role_k
 
 class ListingCreate(BaseModel):
     crop_name: str
+    category: str
     currency: str
     price: float
     unit_of_measurement: str
@@ -25,7 +26,10 @@ class ListingCreate(BaseModel):
 
 class ListingUpdate(BaseModel):
     crop_name: Optional[str] = None
+    category: Optional[str] = None
+    currency: Optional[str] = None
     price: Optional[float] = None
+    unit_of_measurement: Optional[str] = None
     quantity: Optional[float] = None
     photo_url: Optional[str] = None
     status: Optional[str] = None
