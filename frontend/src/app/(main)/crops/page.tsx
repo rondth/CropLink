@@ -128,16 +128,13 @@ export default function CropsListing() {
 
                 <div>
                     {/* description */}
-                    <label htmlFor="desc" className="block text-xs font-bold text-gray-700 mb-1.5">
-                        Description *
-                    </label>
-                    
-                    <textarea required id="desc" name="desc" rows={3} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors resize-none" placeholder="Describe your crop's quality, variety, etc."></textarea>
+                    <label htmlFor="desc" className="block text-xs font-bold text-gray-700 mb-1.5">Description</label>
+                    <textarea required id="desc" name="desc" rows={3} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-Croplink-primary focus:border-Croplink-primary block p-2.5 outline-none transition-colors resize-none" placeholder="Describe your crop's quality, variety, etc."></textarea>
                 </div>
 
                 <div>
                     {/* photo */}
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Crops Photo *</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Crops Photo</label>
                     <div className="flex justify-center px-6 py-6 border-2 border-gray-200 border-dashed rounded-xl bg-gray-50">
                         <div className="text-center">
                         <Image src="/file.png" alt="File Image" className="mx-auto text-center justify-center" width={50} height={50} />

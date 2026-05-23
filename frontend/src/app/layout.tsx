@@ -10,16 +10,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
         <html lang="en">
             <body>
-                
-                <AuthProvider>
-                    <RoleProvider>
-                        <RoleToggle />
-                        <MobileLayout>
-                            {children}
-                        </MobileLayout>
-                    </RoleProvider>
-                </AuthProvider>
-                
+                <RoleProvider>
+                    <RoleToggle />
+                    {children}
+                </RoleProvider>
             </body>
         </html>
     );
