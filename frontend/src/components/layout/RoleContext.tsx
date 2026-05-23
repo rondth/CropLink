@@ -12,7 +12,7 @@ interface RoleContextType {
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-    const [role, setRole] = useState<Role>('seller');
+    const [role, setRole] = useState<Role>('buyer');
 
     return (
         <RoleContext.Provider value={{ role, setRole }}>
