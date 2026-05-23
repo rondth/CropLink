@@ -1,0 +1,21 @@
+,countryiso3,date,admin1,admin2,market,market_id,latitude,longitude,category,commodity,commodity_id,unit,priceflag,pricetype,currency,price,usdprice
+33660,KHM,2026-02-15,Kampong Cham,Prey Chhor,Prey Totung,3113,12.06,105.26,cereals and tubers,Sweet potatoes (orange),1227,KG,aggregate,Retail,KHR,2500.0,0.62
+55367,PHL,2026-01-15,Region II,Nueva Vizcaya,Nueva Vizcaya,4271,16.49,121.15,"meat, fish and eggs",Fish (redbelly yellowtail fusilier),861,KG,actual,Retail,PHP,438.75,7.38
+40054,MMR,2026-01-15,Bago (East),Taungoo,Oktwin Myoma,11331,18.83,96.41,vegetables and fruits,Onions (local),324,KG,actual,Retail,MMK,1142.0,0.55
+57766,PHL,2026-02-15,National Capital region,Metropolitan Manila,Metro Manila,167,14.6,120.98,"meat, fish and eggs",Shrimp (endeavor),863,KG,actual,Retail,PHP,523.48,9.04
+56961,PHL,2026-01-15,Region X,Misamis Oriental,Misamis Oriental,4312,8.48,124.65,"meat, fish and eggs",Anchovies,711,KG,actual,Retail,PHP,150.0,2.52
+59036,PHL,2026-02-15,Region VI,Guimaras,Guimaras,4294,10.67,122.59,cereals and tubers,Semolina (yellow),849,KG,actual,Retail,PHP,33.17,0.57
+62279,PHL,2026-03-15,Region XI,Davao del Norte,Davao del Norte,4314,7.45,125.8,"meat, fish and eggs","Meat (pork, with bones)",856,KG,actual,Retail,PHP,295.0,4.94
+55753,PHL,2026-01-15,Region IV-A,Laguna,Laguna,4280,14.29,121.41,"meat, fish and eggs",Fish (roundscad),841,KG,actual,Retail,PHP,323.25,5.43
+59526,PHL,2026-02-15,Region X,Lanao del Norte,Lanao del Norte,4310,8.04,123.8,vegetables and fruits,Calamansi,847,KG,actual,Retail,PHP,55.0,0.95
+56833,PHL,2026-01-15,Region VIII,Southern Leyte,Southern Leyte,4304,10.13,124.83,vegetables and fruits,Garlic,105,KG,actual,Retail,PHP,191.0,3.21
+33668,KHM,2026-02-15,Kampong Cham,Prey Chhor,Prey Totung,3113,12.06,105.26,miscellaneous food,"Fish paste (red, fermented)",1217,KG,aggregate,Retail,KHR,12000.0,2.99
+58386,PHL,2026-02-15,Region IV-A,Laguna,Laguna,4280,14.29,121.41,vegetables and fruits,Eggplants,434,KG,actual,Retail,PHP,96.25,1.66
+34468,KHM,2026-03-15,Kampong Thom,Baray,Baray,9054,12.4,105.08,vegetables and fruits,Cauliflower,231,KG,aggregate,Wholesale,KHR,3337.5,0.83
+33487,KHM,2026-01-15,Stung Treng,Stueng Traeng,Stung Treng,1674,13.53,105.97,vegetables and fruits,Tamarind (ripe),1144,KG,aggregate,Wholesale,KHR,2000.0,0.5
+61016,PHL,2026-03-15,Region IV-A,Quezon,Quezon,4281,13.93,121.61,"meat, fish and eggs",Shrimp (tiger),864,KG,actual,Retail,PHP,672.5,11.25
+40521,MMR,2026-01-15,Tanintharyi,Myeik,Palaw,8469,12.98,98.65,vegetables and fruits,Onions (local),324,KG,actual,Retail,MMK,3366.0,1.61
+55712,PHL,2026-01-15,Region IV-A,Cavite,Cavite,4279,14.42,120.94,"meat, fish and eggs",Fish (slipmouth),862,KG,actual,Retail,PHP,365.0,6.14
+33984,KHM,2026-02-15,Preah Vihear,Preah Vihear,Kampong Pranak,3126,13.81,104.98,"meat, fish and eggs","Meat (beef, fat, without bones)",1213,KG,aggregate,Wholesale,KHR,10000.0,2.49
+58022,PHL,2026-02-15,Region II,Quirino,Quirino,4272,16.52,121.52,vegetables and fruits,"Beans (green, fresh)",458,KG,actual,Retail,PHP,57.5,0.99
+40743,MMR,2026-02-15,Mandalay,Mandalay,YaeNiMyaung,6087,21.96,96.1,cereals and tubers,Rice (low quality),145,KG,actual,Retail,MMK,2271.0,1.08
