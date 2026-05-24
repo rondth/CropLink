@@ -41,7 +41,7 @@ build/
 # React Native (Frontend)
 # ========================
 # Next
-.next/
+frontend/.next/
 
 # Expo
 .expo/
