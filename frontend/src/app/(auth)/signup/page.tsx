@@ -16,12 +16,20 @@ export default function SignupPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const validatePassword = (val: string) => {
+        const hasLength = val.length >= 8;
+        const hasNumber = /\d/.test(val);
+        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(val);
+        return { hasLength, hasNumber, hasSpecial };
+    };
+
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters.');
+        const { hasLength, hasNumber, hasSpecial } = validatePassword(password);
+        if (!hasLength || !hasNumber || !hasSpecial) {
+            setError('Password must be at least 8 characters, include a number, and a special character.');
             return;
         }
 
@@ -138,7 +146,27 @@ export default function SignupPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" />
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" 
+                    />
+                    {/* Only show checklist once user starts typing */}
+                    {password.length > 0 && (() => {
+                        const { hasLength, hasNumber, hasSpecial } = validatePassword(password);
+                        const checks = [
+                            { label: 'At least 8 characters', passed: hasLength },
+                            { label: 'Contains a number', passed: hasNumber },
+                            { label: 'Contains a special character', passed: hasSpecial },
+                        ];
+                        return (
+                            <ul className="mt-2 flex flex-col gap-1">
+                                {checks.map(({ label, passed }) => (
+                                    <li key={label} className={`flex items-center gap-1.5 text-[10px] font-medium transition-colors ${passed ? 'text-[#4a7c59]' : 'text-gray-400'}`}>
+                                        <span>{passed ? '✓' : '○'}</span>
+                                        {label}
+                                    </li>
+                                ))}
+                            </ul>
+                        );
+                    })()}
                 </div>
 
                 <div className="pt-2 mt-1 border-t border-gray-100">
