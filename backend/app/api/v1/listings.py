@@ -3,11 +3,9 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from app.core.dependencies import get_current_user, get_current_user_id
-from app.core.config import settings
-from supabase import create_client
+from app.core.supabase import supabase
 
 router = APIRouter(prefix="/listings", tags=["listings"])
-supabase = create_client(settings.supabase_url, settings.supabase_service_role_key)
 
 # SCHEMAS
 
@@ -62,15 +60,23 @@ def create_listing(
     return response.data[0]
 
 # GET /listings
+# get all listing
 @router.get("/")
-def get_listings(user: dict = Depends(get_current_user)):
-    # Only filter for `status = active` listings that is relevant for the buyers
+def get_listings():
     response = supabase.table("crops_listings").select("*").eq("status", "active").execute()
     return response.data
 
+# GET /listings/me
+# get all listing of current logged user
+@router.get("/me")
+def get_my_listings(user_id: str = Depends(get_current_user_id), user: dict = Depends(get_current_user)):
+    response = supabase.table("crops_listings").select("*").eq("seller_id", user_id).execute()
+    return response.data
+
 # GET /listings/{id}
+# get single listing
 @router.get("/{listing_id}")
-def get_listings(listing_id: str, user: dict = Depends(get_current_user)):
+def get_listing(listing_id: str):
     response = supabase.table("crops_listings").select("*").eq("id", listing_id).single().execute()
     
     if not response.data:
@@ -102,3 +108,19 @@ def update_listing(
     
     response = supabase.table("crops_listings").update(dump).eq("id", listing_id).execute()
     return response.data[0]
+
+# DELETE /listings/{id}
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_listing(
+    listing_id: str,
+    user_id: str = Depends(get_current_user_id),
+    user: dict = Depends(get_current_user)
+):
+    existing = supabase.table("crops_listings").select("*").eq("id", listing_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if existing.data[0]["seller_id"] != user_id:
+        raise HTTPException(status_code=403, detail="You can only delete your own listings")
+    
+    supabase.table("crops_listings").delete().eq("id", listing_id).execute()
+    return None 
