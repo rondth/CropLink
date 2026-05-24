@@ -1,9 +1,46 @@
 'use client';
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function SignupPage() {
+    const router = useRouter();
+    const { signup } = useAuth();
+
     const [role, setRole] = useState<'seller' | 'buyer'>('seller');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSignup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters.');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            await signup({
+                email,
+                password,
+                name: `${firstName} ${lastName}`,
+                role,
+            });
+            router.push('/dashboard');
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || 'Something went wrong. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="h-full bg-[#faf8f5] flex flex-col justify-center px-5 py-6">
@@ -42,36 +79,75 @@ export default function SignupPage() {
             </div>
 
             {/* Form */}
-            <form className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col gap-3">
+            <form 
+                onSubmit={handleSignup}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col gap-3"
+            >
+                {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-3 py-2">
+                        {error}
+                    </div>
+                )}
+
                 <div className="flex gap-3">
                     <div className="flex-1">
                         <label htmlFor="firstName" className="block text-[9px] font-bold text-gray-500 uppercase tracking-wide mb-1">First name *</label>
-                        <input type="text" id="firstName" placeholder="Shane"
-                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" />
+                        <input 
+                            type="text" 
+                            id="firstName" 
+                            placeholder="Shane"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" 
+                        />
                     </div>
                     <div className="flex-1">
                         <label htmlFor="lastName" className="block text-[9px] font-bold text-gray-500 uppercase tracking-wide mb-1">Last name *</label>
-                        <input type="text" id="lastName" placeholder="Santoso"
-                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" />
+                        <input 
+                            type="text" 
+                            id="lastName" 
+                            placeholder="Santoso"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" 
+                        />
                     </div>
                 </div>
 
                 <div>
                     <label htmlFor="email" className="block text-[9px] font-bold text-gray-500 uppercase tracking-wide mb-1">Email *</label>
-                    <input type="email" id="email" placeholder="you@example.com"
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" />
+                    <input 
+                        type="email" 
+                        id="email" 
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" 
+                    />
                 </div>
 
                 <div>
                     <label htmlFor="password" className="block text-[9px] font-bold text-gray-500 uppercase tracking-wide mb-1">Password *</label>
-                    <input type="password" id="password" placeholder="Min. 8 characters"
+                    <input 
+                        type="password" 
+                        id="password" 
+                        placeholder="Min. 8 characters"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
                         className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" />
                 </div>
 
                 <div className="pt-2 mt-1 border-t border-gray-100">
-                    <button type="submit"
-                        className="w-full bg-[#4a7c59] text-white font-black text-sm py-3.5 px-4 rounded-xl hover:bg-[#3a6347] active:scale-[0.98] transition-all">
-                        Create account
+                    <button 
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-[#4a7c59] text-white font-black text-sm py-3.5 px-4 rounded-xl hover:bg-[#3a6347] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loading ? 'Creating account...' : 'Create account'}
                     </button>
                 </div>
             </form>
