@@ -42,7 +42,7 @@ export default function SignupPage() {
                 name: `${firstName} ${lastName}`,
                 role,
             });
-            router.push('/dashboard');
+            router.push('/');
         } catch (err: any) {
             setError(err?.response?.data?.detail || 'Something went wrong. Please try again.');
         } finally {
