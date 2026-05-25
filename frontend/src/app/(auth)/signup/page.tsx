@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function SignupPage() {
@@ -13,6 +14,7 @@ export default function SignupPage() {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -139,15 +141,28 @@ export default function SignupPage() {
 
                 <div>
                     <label htmlFor="password" className="block text-[9px] font-bold text-gray-500 uppercase tracking-wide mb-1">Password *</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        placeholder="Min. 8 characters"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 outline-none transition-colors" 
-                    />
+                    <div className="relative">
+                        <input 
+                            type={showPassword ? 'text' : 'password'} 
+                            id="password" 
+                            placeholder="Min. 8 characters"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl block p-2.5 pr-10 outline-none transition-colors" 
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            {showPassword ? (
+                                <EyeOff size={16} />
+                            ) : (
+                                <Eye size={16} />
+                            )}
+                        </button>
+                    </div>
                     {/* Only show checklist once user starts typing */}
                     {password.length > 0 && (() => {
                         const { hasLength, hasNumber, hasSpecial } = validatePassword(password);
