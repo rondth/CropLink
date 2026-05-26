@@ -80,7 +80,7 @@ export default function CropsListing() {
                     <div className="w-[100px]">
                         <label htmlFor="currency" className="block text-xs font-bold text-gray-700 mb-1.5">Currency *</label>
                         <select id="currency" name="currency" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
-                            <option value="BAHT">BAHT</option>
+                            <option value="THB">BAHT</option>
                             <option value="EUR">EUR</option>
                             <option value="IDR">IDR</option>
                             <option value="SGD">SGD</option>
@@ -129,7 +129,7 @@ export default function CropsListing() {
                 <div>
                     {/* description */}
                     <label htmlFor="desc" className="block text-xs font-bold text-gray-700 mb-1.5">Description</label>
-                    <textarea required id="desc" name="desc" rows={3} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-Croplink-primary focus:border-Croplink-primary block p-2.5 outline-none transition-colors resize-none" placeholder="Describe your crop's quality, variety, etc."></textarea>
+                    <textarea id="desc" name="desc" rows={3} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-Croplink-primary focus:border-Croplink-primary block p-2.5 outline-none transition-colors resize-none" placeholder="Describe your crop's quality, variety, etc."></textarea>
                 </div>
 
                 <div>
@@ -141,7 +141,7 @@ export default function CropsListing() {
                             <div className="flex text-sm text-gray-600 justify-center mt-2">
                                 <label htmlFor="photo" className="relative cursor-pointer bg-white rounded-md font-bold text-CropLink-primary hover:text-CropLink-dark transition-colors">
                                     <span>Upload a file</span>
-                                    <input id="photo" name="photo" type="file" required accept="image/*" className="sr-only" />
+                                    <input id="photo" name="photo" type="file" accept="image/*" className="sr-only" />
                                 </label>
                             </div>
                             <p className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 5MB</p>
