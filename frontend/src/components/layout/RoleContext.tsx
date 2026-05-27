@@ -1,21 +1,22 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useAuth } from '@/lib/AuthContext';
 
 type Role = 'buyer' | 'seller';
 
 interface RoleContextType {
     role: Role;
-    setRole: (role: Role) => void;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-    const [role, setRole] = useState<Role>('buyer');
+    const { user } = useAuth();
+    const role: Role = user?.role === 'seller' ? 'seller' : 'buyer';
 
     return (
-        <RoleContext.Provider value={{ role, setRole }}>
+        <RoleContext.Provider value={{ role }}>
             {children}
         </RoleContext.Provider>
     );

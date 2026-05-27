@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function ProductDetails({ product, onBack }: { product: any, onBack: () => void }) {
     const router = useRouter();
+    const { isAuthenticated } = useAuth();
     const title = product.crop_name || product.name || 'Unknown Crop';
     const unit = product.unit_of_measurement || product.unit || 'unit';
     const minOrder = product.min_order_quantity || 1;
@@ -18,6 +20,11 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
 
     const handleOrder = async () => {
+        if (!isAuthenticated) {
+            router.push('/login');
+            return;
+        }
+        
         setIsOrdering(true);
         try {
             const payload = {
