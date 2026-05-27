@@ -76,7 +76,7 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }
                                 <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.quantity} ${listing.unit_of_measurement} available`}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs font-black text-CropLink-primary">{getCurrencySymbol(listing.currency)}{listing.price.toFixed(2)}<span className="text-[9px] text-gray-400 font-medium">/{listing.unit_of_measurement}</span></p>
+                                <p className="text-xs font-black text-CropLink-primary">{getCurrencySymbol(listing.currency)} {Intl.NumberFormat('en-US').format(parseFloat(listing.price))} <span className="text-[9px] text-gray-400 font-medium">/{listing.unit_of_measurement}</span></p>
                             </div>
                             <div className="flex items-center gap-3 pl-2 border-l border-gray-100">
                                 <button onClick={() => onEdit(listing.id)} className="text-xs text-blue-600 hover:underline font-medium">
@@ -216,10 +216,10 @@ export default function Dashboard() {
 
                                 <div className="flex-1">
                                     <h4 className="text-xs font-bold text-gray-800">{listing.crop_name}</h4>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.quantity} ${listing.unit_of_measurement} available`}</p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">{`${Intl.NumberFormat('en-US').format(listing.quantity)} ${listing.unit_of_measurement} available`}</p>
                                 </div>
                                 <div className="text-right">
-                                        <p className="text-xs font-black text-CropLink-primary">{getCurrencySymbol(listing.currency)}{listing.price.toFixed(2)}<span className="text-[9px] text-gray-400 font-medium">/{listing.unit_of_measurement}</span></p>
+                                        <p className="text-xs font-black text-CropLink-primary">{getCurrencySymbol(listing.currency)} {Intl.NumberFormat('en-US').format(parseFloat(listing.price))} <span className="text-[9px] text-gray-400 font-medium">/{listing.unit_of_measurement}</span></p>
                                 </div>
                             </div>
                         ))
