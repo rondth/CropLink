@@ -73,16 +73,6 @@ def get_my_listings(user_id: str = Depends(get_current_user_id), user: dict = De
     response = supabase.table("crops_listings").select("*").eq("seller_id", user_id).execute()
     return response.data
 
-# GET /listings/{id}
-# get single listing
-@router.get("/{listing_id}")
-def get_listing(listing_id: str):
-    response = supabase.table("crops_listings").select("*").eq("id", listing_id).single().execute()
-    
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Listing not found")
-
-    return response.data
 
 # PATCH /listings/{id}
 @router.patch("/{listing_id}")
@@ -124,3 +114,38 @@ def delete_listing(
     
     supabase.table("crops_listings").delete().eq("id", listing_id).execute()
     return None 
+
+
+# GET categories
+@router.get("/categories", response_model=list[str])
+def get_categories():
+    response = supabase.table("crops_listings").select("category").execute()
+    
+    if not response.data:
+        return []
+
+    categories = set()
+    for item in response.data:
+        category_name = item.get('category')
+        if category_name:
+            categories.add(category_name)
+            
+    return sorted(list(categories))
+
+
+# GET /listings/category/{category}
+@router.get("/category/{category}")
+def get_listings_by_category(category: str):
+    response = supabase.table("crops_listings").select("*").eq("category", category).eq("status", "active").execute()
+    return response.data
+
+# GET /listings/{id}
+# get single listing
+@router.get("/{listing_id}")
+def get_listing(listing_id: str):
+    response = supabase.table("crops_listings").select("*").eq("id", listing_id).single().execute()
+    
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    return response.data
