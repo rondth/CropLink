@@ -49,7 +49,7 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
         <div className="flex flex-col min-h-full bg-gray-50 relative pb-4">
             <div className="relative w-full h-64 bg-[#f7f5f0] shrink-0">
                 {product.photo_url ? (
-                    <Image src={product.photo_url} alt={title} fill className="object-cover" />
+                    <Image src={product.photo_url} alt={title} fill className="object-contain" />
                 ) : (
                     <Image src="/crop.svg" alt={title} fill className="object-cover" />
                 )}
