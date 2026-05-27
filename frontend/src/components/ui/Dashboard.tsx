@@ -82,8 +82,8 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }
                             <span>Sold</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-                            <span>Deleted</span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" />
+                            <span>Inactive</span>
                         </div>
                     </div>
                 </div>
@@ -101,8 +101,8 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }
                                 {
                                     active: 'bg-green-500',
                                     sold: 'bg-yellow-500',
-                                    deleted: 'bg-red-500'
-                                }[listing.status as 'active' | 'sold' | 'deleted'] || 'bg-gray-300'
+                                    inactive: 'bg-gray-300'
+                                }[listing.status as 'active' | 'sold' | 'inactive'] || 'bg-gray-300'
                             }`} />
                             <div className="flex-1">
                                 <h4 className="text-xs font-bold text-gray-800">{listing.crop_name}</h4>
@@ -304,7 +304,7 @@ export default function Dashboard() {
 
                 <div className="flex flex-col gap-3">
                     {activeMyListings.length === 0 ? (
-                        <p className="text-xs text-gray-500 text-center py-4">No active listings yet.</p>
+                        <p className="text-xs text-gray-500 text-center py-4"> No active listings yet. </p>
                     ) : (
                         activeMyListings.slice(0, 3).map((listing, index, arr) => (
                             <div key={listing.id} className={`flex items-center gap-3 ${index < arr.length - 1 ? 'border-b border-gray-50 pb-3' : ''}`}>
@@ -312,8 +312,8 @@ export default function Dashboard() {
                                     {
                                         active: 'bg-green-500',
                                         sold: 'bg-yellow-500',
-                                        deleted: 'bg-red-500'
-                                    }[listing.status as 'active' | 'sold' | 'deleted'] || 'bg-gray-300'
+                                        inactive: 'bg-gray-300'
+                                    }[listing.status as 'active' | 'sold' | 'inactive'] || 'bg-gray-300'
                                 }`} />
 
                                 <div className="flex-1">
