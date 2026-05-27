@@ -199,6 +199,8 @@ export default function Dashboard() {
         fetchData();
     }, []);
 
+    const activeMyListings = myListings.filter(listing => listing.status === 'active');
+
     const handleEdit = (listingId: string) => {
         router.push(`/seller/edit/${listingId}`);
     };
@@ -301,10 +303,10 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    {myListings.length === 0 ? (
+                    {activeMyListings.length === 0 ? (
                         <p className="text-xs text-gray-500 text-center py-4">No active listings yet.</p>
                     ) : (
-                        myListings.slice(0, 3).map((listing, index, arr) => (
+                        activeMyListings.slice(0, 3).map((listing, index, arr) => (
                             <div key={listing.id} className={`flex items-center gap-3 ${index < arr.length - 1 ? 'border-b border-gray-50 pb-3' : ''}`}>
                                 <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                                     {
