@@ -22,7 +22,7 @@ export default function Profile() {
 
     if (!isAuthenticated) {
         return (
-            <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+             <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="text-5xl">🔒</div>
                 <h2 className="text-xl font-black text-gray-800">Sign in to view your profile</h2>
                 <p className="text-sm text-gray-500 text-center">
@@ -40,7 +40,7 @@ export default function Profile() {
                 >
                     Create Account
                 </button>
-            </div>
+             </div>
         );
     }
 
