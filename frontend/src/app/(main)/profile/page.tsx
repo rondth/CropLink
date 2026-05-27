@@ -8,8 +8,8 @@ export default function Profile() {
     const router = useRouter();
 
     const handleLogout = async () => {
-        await logout();
         router.push('/login');
+        await logout();
     }
 
     if (isLoading) {
