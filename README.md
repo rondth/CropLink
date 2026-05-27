@@ -1,15 +1,17 @@
 # Croplink
 
 Frontend Setup :
-``` bash
+
+```bash
 cd frontend
 npm install
 npm install lucide-react
 npm run dev
 ```
 
-Backend Setup : 
-``` bash
+Backend Setup :
+
+```bash
 cd backend
 uvicorn main:app ⁠
 ```
