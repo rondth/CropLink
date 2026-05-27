@@ -200,9 +200,11 @@ export default function SignupPage() {
                 <a href="/login" className="text-[#4a7c59] font-bold">Log in</a>
             </p>
 
+            <p className="py-3"></p>
+            
             <p
                 onClick={() => router.push('/')}
-                className="absolute bottom-12 left-0 right-0 text-xs font-semibold text-center text-CropLink-primary cursor-pointer underline"
+                className="text-xs font-semibold text-center text-CropLink-primary cursor-pointer underline"
             >
                 Continue to Browse Listings
             </p>
