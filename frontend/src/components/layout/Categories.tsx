@@ -4,7 +4,14 @@ import Image from 'next/image';
 import SearchBar from '@/components/ui/SearchBar';
 import {api} from '@/lib/api';
 
-export default function Categories({ selectedCategory, onSelectCategory }: { selectedCategory: string; onSelectCategory: (id: string) => void }) {
+export default function Categories({ 
+    selectedCategory, 
+    onSelectCategory,
+    listings,
+    onSearch
+}: { 
+    selectedCategory: string; onSelectCategory: (id: string) => void, listings: any[], onSearch: (term: string) => void 
+}) {
     const [categories, setCategories] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -32,7 +39,7 @@ export default function Categories({ selectedCategory, onSelectCategory }: { sel
     return (
     <div className="bg-CropLink-primary px-3 pt-1 pb-3.5 shrink-0 select-none">
         {/* search bar */}
-        <SearchBar />
+        <SearchBar listings={listings} onSearch={onSearch} key={selectedCategory} />
         
         {loading && (
             <div className="mt-3 text-center text-white/70 text-sm">Loading categories...</div>

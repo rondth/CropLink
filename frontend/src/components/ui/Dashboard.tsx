@@ -102,7 +102,7 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }
                                     active: 'bg-green-500',
                                     sold: 'bg-yellow-500',
                                     deleted: 'bg-red-500'
-                                }[listing.status] || 'bg-gray-300'
+                                }[listing.status as 'active' | 'sold' | 'deleted'] || 'bg-gray-300'
                             }`} />
                             <div className="flex-1">
                                 <h4 className="text-xs font-bold text-gray-800">{listing.crop_name}</h4>
@@ -313,7 +313,7 @@ export default function Dashboard() {
                                         active: 'bg-green-500',
                                         sold: 'bg-yellow-500',
                                         deleted: 'bg-red-500'
-                                    }[listing.status] || 'bg-gray-300'
+                                    }[listing.status as 'active' | 'sold' | 'deleted'] || 'bg-gray-300'
                                 }`} />
 
                                 <div className="flex-1">
