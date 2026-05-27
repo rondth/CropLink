@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { REVENUE_DATA, SELLER_DASHBOARD_DATA } from '@/data/dashboardData';
 import { api } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 {/* monthly revenue breakdown */}
 function RevenueDetails({ onBack }: { onBack: () => void }) {
@@ -54,7 +55,7 @@ function RevenueDetails({ onBack }: { onBack: () => void }) {
 }
 
 {/* all listings */}
-function AllListings({ myListings, onBack, getCurrencySymbol }: { myListings: any[], onBack: () => void, getCurrencySymbol: (currency?: string) => string }) {
+function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }: { myListings: any[], onBack: () => void, getCurrencySymbol: (currency?: string) => string, onEdit: (id: number) => void, onRemove: (id: number, name: string) => void }) {
     return (
         <div className="p-4 pb-8 flex flex-col gap-4">
             <div className="px-1">
@@ -70,13 +71,20 @@ function AllListings({ myListings, onBack, getCurrencySymbol }: { myListings: an
                 ) : (
                     myListings.map((listing, index) => (
                         <div key={listing.id} className={`flex items-center gap-3 ${index < myListings.length - 1 ? 'border-b border-gray-50 pb-3' : ''}`}>
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#2d5a27' }}></div>
                             <div className="flex-1">
                                 <h4 className="text-xs font-bold text-gray-800">{listing.crop_name}</h4>
                                 <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.quantity} ${listing.unit_of_measurement} available`}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs font-black text-CropLink-primary">{getCurrencySymbol(listing.currency)}{listing.price.toFixed(2)}<span className="text-[9px] text-gray-400 font-medium">/{listing.unit_of_measurement}</span></p>
+                            </div>
+                            <div className="flex items-center gap-3 pl-2 border-l border-gray-100">
+                                <button onClick={() => onEdit(listing.id)} className="text-xs text-blue-600 hover:underline font-medium">
+                                    Edit
+                                </button>
+                                <button onClick={() => onRemove(listing.id, listing.crop_name)} className="text-xs text-red-600 hover:underline font-medium">
+                                    Delete
+                                </button>
                             </div>
                         </div>
                     ))
@@ -88,6 +96,7 @@ function AllListings({ myListings, onBack, getCurrencySymbol }: { myListings: an
 
 {/* main dashboard */}
 export default function Dashboard() {
+    const router = useRouter();
     const [showRevenueDetails, setShowRevenueDetails] = useState(false);
     const [showAllListings, setShowAllListings] = useState(false);
     const [myListings, setMyListings] = useState<any[]>([]);
@@ -103,6 +112,23 @@ export default function Dashboard() {
         };
         fetchMyListings();
     }, []);
+
+    const handleEdit = (listingId: number) => {
+        router.push(`/seller/edit/${listingId}`);
+    };
+
+    const handleRemove = async (listingId: number, listingName: string) => {
+        if (window.confirm(`Are you sure you want to delete "${listingName}"? This action cannot be undone.`)) {
+            try {
+                await api.delete(`/listings/${listingId}/`);
+                setMyListings(prevListings => prevListings.filter(l => l.id !== listingId));
+                alert('Listing deleted successfully.');
+            } catch (error) {
+                console.error('Failed to delete listing:', error);
+                alert('Could not delete the listing. Please try again.');
+            }
+        }
+    };
 
     const getCurrencySymbol = (currency?: string) => {
         switch (currency?.toUpperCase()) {
@@ -121,7 +147,7 @@ export default function Dashboard() {
     }
 
     if (showAllListings) {
-        return <AllListings myListings={myListings} onBack={() => setShowAllListings(false)} getCurrencySymbol={getCurrencySymbol} />;
+        return <AllListings myListings={myListings} onBack={() => setShowAllListings(false)} getCurrencySymbol={getCurrencySymbol} onEdit={handleEdit} onRemove={handleRemove} />;
     }
 
     return (
