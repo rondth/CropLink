@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 
 interface Listing {
-    id: number;
+    id: string;
     crop_name: string;
     price: number;
     currency: string;
@@ -33,7 +33,7 @@ export default function EditListingPage() {
         const fetchListing = async () => {
             setIsLoading(true);
             try {
-                const { data } = await api.get(`/listings/${id}/`);
+                const { data } = await api.get(`/listings/${id}`);
                 // need YYYY-MM-DD for the input
                 data.harvested_at = new Date(data.harvested_at).toISOString().split('T')[0];
                 setListing(data);
@@ -60,19 +60,29 @@ export default function EditListingPage() {
 
         // construct payload, ensuring numbers are parsed correctly
         const payload = {
-            ...listing,
-            price: parseFloat(listing.price as any),
-            quantity: parseFloat(listing.quantity as any),
-            min_order_quantity: parseFloat(listing.min_order_quantity as any),
-            harvested_at: new Date(listing.harvested_at as string).toISOString(),
+            crop_name: listing.crop_name,
+            price: listing.price ? parseFloat(listing.price as any) : undefined,
+            currency: listing.currency,
+            quantity: listing.quantity ? parseFloat(listing.quantity as any) : undefined,
+            unit_of_measurement: listing.unit_of_measurement,
+            min_order_quantity: listing.min_order_quantity ? parseFloat(listing.min_order_quantity as any) : undefined,
+            harvested_at: listing.harvested_at ? new Date(listing.harvested_at as string).toISOString() : undefined,
+            location: listing.location,
+            description: listing.description,
+            status: listing.status,
         };
 
         try {
-            await api.patch(`/listings/${id}/`, payload); 
+            await api.patch(`/listings/${id}`, payload); 
             router.push('/'); 
         } catch (err: any) {
             console.error("Failed to update listing:", err);
-            setError(err.response?.data?.detail || "Failed to update listing. Please try again.");
+            const errorDetail = err.response?.data?.detail;
+            if (Array.isArray(errorDetail)) {
+                setError(errorDetail.map(d => `${d.loc[1]}: ${d.msg}`).join('; '));
+            } else {
+                setError(errorDetail || "Failed to update listing. Please try again.");
+            }
         } finally {
             setIsSaving(false);
         }
@@ -147,7 +157,7 @@ export default function EditListingPage() {
                     <select id="status" name="status" value={listing.status || 'active'} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5">
                         <option value="active">Active</option>
                         <option value="sold">Sold</option>
-                        <option value="deleted">Deleted</option>
+                        <option value="inactive">Inactive</option>
                     </select>
                 </div>
 

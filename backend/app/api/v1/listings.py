@@ -25,9 +25,11 @@ class ListingCreate(BaseModel):
 class ListingUpdate(BaseModel):
     crop_name: Optional[str] = None
     price: Optional[float] = None
+    currency: Optional[str] = None
     quantity: Optional[float] = None
+    unit_of_measurement: Optional[str] = None
     photo_url: Optional[str] = None
-    status: Optional[Literal['active', 'sold', 'deleted']] = None
+    status: Optional[Literal['active', 'sold', 'inactive']] = None
     harvested_at: Optional[datetime] = None
     description: Optional[str] = None
     location: Optional[str] = None
