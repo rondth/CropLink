@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
@@ -16,6 +16,7 @@ class ListingCreate(BaseModel):
     unit_of_measurement: str
     quantity: float
     photo_url: Optional[str] = None
+    status: Literal['active']
     harvested_at: datetime
     description: Optional[str] = None
     location: str
@@ -26,7 +27,7 @@ class ListingUpdate(BaseModel):
     price: Optional[float] = None
     quantity: Optional[float] = None
     photo_url: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[Literal['active', 'sold', 'deleted']] = None
     harvested_at: Optional[datetime] = None
     description: Optional[str] = None
     location: Optional[str] = None
