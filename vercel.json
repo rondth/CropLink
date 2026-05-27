@@ -3,8 +3,7 @@
         "frontend": {
             "root": "frontend",
             "routePrefix": "/",
-            "framework": "nextjs",
-            "entrypoint": "frontend"
+            "framework": "nextjs"
         },
         "backend": {
             "framework": "fastapi",
