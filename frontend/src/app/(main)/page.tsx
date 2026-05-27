@@ -10,12 +10,14 @@ import ProductDetails from '@/components/marketplace/ProductDetails';
 interface Product {
     id: string;
     category: string;
+    [key: string]: any;
 }
 
 export default function Home() {
     const { role } = useRole();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState<Product[]>([]);
+    const [searchFilter, setSearchFilter] = useState('');
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 6;
@@ -32,18 +34,25 @@ export default function Home() {
         fetchListings();
     }, []);
 
-    const filteredProducts = selectedCategory === 'All'
-        ? products
-        : products.filter(product => product.category === selectedCategory);
+    const filteredProducts = products.filter(product => {
+        const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
+        const searchMatch = !searchFilter || product.crop_name.toLowerCase().includes(searchFilter.toLowerCase());
+        return categoryMatch && searchMatch;
+    });
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // Reset to page 1 when category changes
+    // resets to page 1 when category or search filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedCategory]);
+    }, [selectedCategory, searchFilter]);
+
+    const handleCategorySelect = (category: string) => {
+        setSelectedCategory(category);
+        setSearchFilter('');
+    };
 
     return (
         <>
@@ -52,7 +61,12 @@ export default function Home() {
                     <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />
                 ) : (
                     <>
-                        <Categories selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+                        <Categories 
+                            selectedCategory={selectedCategory} 
+                            onSelectCategory={handleCategorySelect} 
+                            listings={products}
+                            onSearch={setSearchFilter}
+                        />
                         <div className="py-2"></div>
                         <ProductGrid products={paginatedProducts} onProductClick={setSelectedProduct} />
                         
