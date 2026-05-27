@@ -1,16 +1,21 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import Category from '@/components/layout/Categories';
+import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
 
+interface Product {
+    id: string;
+    category: string;
+}
+
 export default function Home() {
     const { role } = useRole();
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    const [products, setProducts] = useState<any[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [products, setProducts] = useState<Product[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 6;
@@ -27,8 +32,9 @@ export default function Home() {
         fetchListings();
     }, []);
 
-    // TODO: add category filtering logic to backend later
-    const filteredProducts = products;
+    const filteredProducts = selectedCategory === 'All'
+        ? products
+        : products.filter(product => product.category === selectedCategory);
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -46,7 +52,7 @@ export default function Home() {
                     <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />
                 ) : (
                     <>
-                        <Category selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+                        <Categories selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
                         <div className="py-2"></div>
                         <ProductGrid products={paginatedProducts} onProductClick={setSelectedProduct} />
                         
