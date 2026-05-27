@@ -53,7 +53,7 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="h-full bg-[#faf8f5] flex flex-col justify-center px-5 py-6">
+        <div className="h-full bg-[#faf8f5] flex flex-col justify-center px-5 py-6 relative">
             {/* Logo */}
             <div className="flex flex-col items-center gap-1.5 mb-6">
                 <div className="flex items-center gap-2.5">
@@ -198,6 +198,13 @@ export default function SignupPage() {
             <p className="text-center text-xs text-gray-400 mt-4">
                 Already have an account?{' '}
                 <a href="/login" className="text-[#4a7c59] font-bold">Log in</a>
+            </p>
+
+            <p
+                onClick={() => router.push('/')}
+                className="absolute bottom-12 left-0 right-0 text-xs font-semibold text-center text-CropLink-primary cursor-pointer underline"
+            >
+                Continue to Browse Listings
             </p>
         </div>
     );
