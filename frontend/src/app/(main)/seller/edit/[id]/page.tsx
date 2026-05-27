@@ -14,6 +14,7 @@ interface Listing {
     harvested_at: string;
     location: string;
     description: string;
+    status: 'active' | 'sold' | 'inactive';
 }
 
 export default function EditListingPage() {
@@ -139,6 +140,15 @@ export default function EditListingPage() {
                 <div>
                     <label htmlFor="description" className="block text-xs font-bold text-gray-700 mb-1.5">Description</label>
                     <textarea id="description" name="description" value={listing.description || ''} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5" rows={4} />
+                </div>
+
+                <div>
+                    <label htmlFor="status" className="block text-xs font-bold text-gray-700 mb-1.5">Status</label>
+                    <select id="status" name="status" value={listing.status || 'active'} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5">
+                        <option value="active">Active</option>
+                        <option value="sold">Sold</option>
+                        <option value="deleted">Deleted</option>
+                    </select>
                 </div>
 
                 <div className="pt-2 mt-2 border-t border-gray-100">
