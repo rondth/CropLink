@@ -4,8 +4,13 @@ import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function Profile() {
-    const { isAuthenticated, isLoading, user } = useAuth();
+    const { isAuthenticated, isLoading, user, logout } = useAuth();
     const router = useRouter();
+
+    const handleLogout = async () => {
+        await logout();
+        router.push('/login');
+    }
 
     if (isLoading) {
         return (
@@ -47,6 +52,12 @@ export default function Profile() {
                 <p className="text-gray-500 text-sm text-left">Email: {user?.email}</p>
                 <p className="text-gray-500 text-sm text-left">Role: {user?.role}</p>
             </div>
+            <button
+                onClick={handleLogout}
+                className="w-full max-w-xs border border-red-400 text-red-400 font-bold py-3 rounded-xl mt-4"
+            >
+                Log Out
+            </button>
         </div>
     );
 }
