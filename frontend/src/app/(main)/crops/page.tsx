@@ -37,6 +37,7 @@ export default function CropsListing() {
             quantity: parseFloat(formData.get('quantity') as string),
             unit_of_measurement: formData.get('unit'),
             min_order_quantity: parseFloat(formData.get('min_order_quantity') as string),
+            status: 'active',
             harvested_at: new Date(formData.get('harvested_at') as string).toISOString(),
             location: formData.get('location'),
             description: formData.get('desc'),
