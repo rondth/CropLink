@@ -38,7 +38,6 @@ export default function Login() {
                     <Image src="/logo-green.png" alt="CropLink Logo" width={28} height={28} />
                     <div className="relative">
                         <span className="text-3xl font-black text-[#2d5a3d] tracking-tight">CropLink</span>
-                        <span className="absolute bottom-[7px] -right-3 w-1.5 h-1.5 bg-[#7ecf94] rounded-full" />
                     </div>
                 </div>
                 <p className="text-xs text-gray-400 text-center">From the field, to your feed.</p>
