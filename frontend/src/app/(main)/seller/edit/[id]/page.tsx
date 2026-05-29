@@ -1,7 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 interface Listing {
     id: string;
@@ -15,6 +17,7 @@ interface Listing {
     location: string;
     description: string;
     status: 'active' | 'sold' | 'inactive';
+    photo_url: string | null;
 }
 
 export default function EditListingPage() {
@@ -26,6 +29,9 @@ export default function EditListingPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -34,9 +40,9 @@ export default function EditListingPage() {
             setIsLoading(true);
             try {
                 const { data } = await api.get(`/listings/${id}`);
-                // need YYYY-MM-DD for the input
                 data.harvested_at = new Date(data.harvested_at).toISOString().split('T')[0];
                 setListing(data);
+                if (data.photo_url) setPreviewUrl(data.photo_url);
             } catch (err) {
                 console.error("Failed to fetch listing:", err);
                 setError("Could not find the listing you're looking for.");
@@ -53,26 +59,71 @@ export default function EditListingPage() {
         setListing(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // 5MB limit check
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Image must be under 5MB.');
+            return;
+        }
+
+        setSelectedFile(file);
+        setPreviewUrl(URL.createObjectURL(file));
+        setError('');
+    }
+
+    const uploadPhoto = async (file: File): Promise<string | null> => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(fileName, file);
+        
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            return null;
+        }
+
+        const { data } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
+    }
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSaving(true);
         setError('');
 
-        // construct payload, ensuring numbers are parsed correctly
-        const payload = {
-            crop_name: listing.crop_name,
-            price: listing.price ? parseFloat(listing.price as any) : undefined,
-            currency: listing.currency,
-            quantity: listing.quantity ? parseFloat(listing.quantity as any) : undefined,
-            unit_of_measurement: listing.unit_of_measurement,
-            min_order_quantity: listing.min_order_quantity ? parseFloat(listing.min_order_quantity as any) : undefined,
-            harvested_at: listing.harvested_at ? new Date(listing.harvested_at as string).toISOString() : undefined,
-            location: listing.location,
-            description: listing.description,
-            status: listing.status,
-        };
-
         try {
+            let photoUrl = listing.photo_url ?? null;
+            if (selectedFile) {
+                photoUrl = await uploadPhoto(selectedFile);
+                if (!photoUrl) {
+                    setError('Failed to upload photo. Please try again.');
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            const payload = {
+                crop_name: listing.crop_name,
+                price: listing.price ? parseFloat(listing.price as any) : undefined,
+                currency: listing.currency,
+                quantity: listing.quantity ? parseFloat(listing.quantity as any) : undefined,
+                unit_of_measurement: listing.unit_of_measurement,
+                min_order_quantity: listing.min_order_quantity ? parseFloat(listing.min_order_quantity as any) : undefined,
+                harvested_at: listing.harvested_at ? new Date(listing.harvested_at as string).toISOString() : undefined,
+                location: listing.location,
+                description: listing.description,
+                status: listing.status,
+                photo_url: photoUrl
+            };
+
             await api.patch(`/listings/${id}`, payload); 
             router.push('/'); 
         } catch (err: any) {
@@ -159,6 +210,39 @@ export default function EditListingPage() {
                         <option value="sold">Sold</option>
                         <option value="inactive">Inactive</option>
                     </select>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Crop Photo</label>
+                    <div
+                        className="flex justify-center px-6 py-6 border-2 border-gray-200 border-dashed rounded-xl bg-gray-50 cursor-pointer hover:border-CropLink-primary transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        {previewUrl ? (
+                            <div className="relative w-full h-40">
+                                <Image src={previewUrl} alt="Preview" fill sizes="100vw" className="object-contain rounded-lg" />
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <Image src="/file.png" alt="File Image" className="mx-auto" width={50} height={50} />
+                                <p className="text-sm font-bold text-CropLink-primary mt-2">Upload a file</p>
+                                <p className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+                            </div>
+                        )}
+                        <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handleFileChange} />
+                    </div>
+                    {selectedFile && (
+                        <div className="flex items-center justify-between mt-2 px-1">
+                            <span className="text-xs text-gray-500 truncate">{selectedFile.name}</span>
+                            <button
+                                type="button"
+                                onClick={() => { setSelectedFile(null); setPreviewUrl(listing.photo_url ?? null); }}
+                                className="text-xs text-red-400 font-bold ml-2 shrink-0"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="pt-2 mt-2 border-t border-gray-100">
