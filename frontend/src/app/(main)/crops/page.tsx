@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useRole } from '@/components/layout/RoleContext';
+import { supabase } from '@/lib/supabase';
 
 
 export default function CropsListing() {
@@ -11,6 +12,9 @@ export default function CropsListing() {
     const { role } = useRole();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (role === 'buyer') {
@@ -22,29 +26,73 @@ export default function CropsListing() {
         return null; 
     }
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // 5MB limit check
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Image must be under 5MB.');
+            return;
+        }
+
+        setSelectedFile(file);
+        setPreviewUrl(URL.createObjectURL(file));
+        setError('');
+    }
+
+    const uploadPhoto = async (file: File): Promise<string | null> => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(fileName, file);
+        
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            return null;
+        }
+
+        const { data } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(fileName);
+
+        return data.publicUrl;
+    }
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
 
         const formData = new FormData(e.currentTarget);
-        
-        // construct payload from input data
-        const payload = {
-            crop_name: formData.get('crop_name'),
-            price: parseFloat(formData.get('price') as string),
-            currency: formData.get('currency'),
-            quantity: parseFloat(formData.get('quantity') as string),
-            unit_of_measurement: formData.get('unit'),
-            min_order_quantity: parseFloat(formData.get('min_order_quantity') as string),
-            status: 'active',
-            harvested_at: new Date(formData.get('harvested_at') as string).toISOString(),
-            location: formData.get('location'),
-            description: formData.get('desc'),
-            photo_url: null
-        };
 
         try {
+            let photoUrl: string | null = null;
+            if (selectedFile) {
+                photoUrl = await uploadPhoto(selectedFile);
+                if (!photoUrl) {
+                    setError('Failed to upload photo. Please try again.');
+                    setIsLoading(false);
+                    return;
+                }
+            }
+            
+            const payload = {
+                crop_name: formData.get('crop_name'),
+                price: parseFloat(formData.get('price') as string),
+                currency: formData.get('currency'),
+                quantity: parseFloat(formData.get('quantity') as string),
+                unit_of_measurement: formData.get('unit'),
+                min_order_quantity: parseFloat(formData.get('min_order_quantity') as string),
+                status: 'active',
+                harvested_at: new Date(formData.get('harvested_at') as string).toISOString(),
+                location: formData.get('location'),
+                description: formData.get('desc'),
+                photo_url: null
+            };
+
             await api.post('/listings/', payload); //post to backend
             router.push('/');
         } catch (err: any) {
@@ -54,8 +102,8 @@ export default function CropsListing() {
             setIsLoading(false);
         }
     };
+
     return (
-        
         <div className="p-4 pb-8">
             <h1 className="text-2xl font-black text-gray-800 mb-4 px-2">List Your Crop</h1>
             
@@ -134,20 +182,47 @@ export default function CropsListing() {
                 </div>
 
                 <div>
-                    {/* photo */}
+                    {/* photo upload */}
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Crops Photo</label>
-                    <div className="flex justify-center px-6 py-6 border-2 border-gray-200 border-dashed rounded-xl bg-gray-50">
-                        <div className="text-center">
-                        <Image src="/file.png" alt="File Image" className="mx-auto text-center justify-center" width={50} height={50} />
-                            <div className="flex text-sm text-gray-600 justify-center mt-2">
-                                <label htmlFor="photo" className="relative cursor-pointer bg-white rounded-md font-bold text-CropLink-primary hover:text-CropLink-dark transition-colors">
-                                    <span>Upload a file</span>
-                                    <input id="photo" name="photo" type="file" accept="image/*" className="sr-only" />
-                                </label>
+                    <div
+                        className="flex justify-center px-6 py-6 border-2 border-gray-200 border-dashed rounded-xl bg-gray-50 cursor-pointer hover:border-CropLink-primary transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        {previewUrl ? (
+                            // show preview if file selected
+                            <div className="relative w-full h-40">
+                                <Image src={previewUrl} alt="Preview" fill className="object-contain rounded-lg" />
                             </div>
-                            <p className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 5MB</p>
-                        </div>
+                        ) : (
+                            <div className="text-center">
+                                <Image src="/file.png" alt="File Image" className="mx-auto" width={50} height={50} />
+                                <p className="text-sm font-bold text-CropLink-primary mt-2">Upload a file</p>
+                                <p className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+                            </div>
+                        )}
+                        <input
+                            ref={fileInputRef}
+                            id="photo"
+                            name="photo"
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handleFileChange}
+                        />
                     </div>
+                    { /* show filename & remove button after selecting */ }
+                    {selectedFile && (
+                        <div className="flex items-center justify-between mt-2 px-1">
+                            <span className="text-xs text-gray-500 truncate">{selectedFile.name}</span>
+                            <button
+                                type="button"
+                                onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
+                                className="text-xs text-red-400 font-bold ml-2 shrink-0"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* submit Button */}
