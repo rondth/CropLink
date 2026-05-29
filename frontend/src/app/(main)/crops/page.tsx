@@ -90,7 +90,7 @@ export default function CropsListing() {
                 harvested_at: new Date(formData.get('harvested_at') as string).toISOString(),
                 location: formData.get('location'),
                 description: formData.get('desc'),
-                photo_url: null
+                photo_url: photoUrl
             };
 
             await api.post('/listings/', payload); //post to backend
