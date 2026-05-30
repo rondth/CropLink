@@ -32,6 +32,7 @@ export default function EditListingPage() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);  
 
     useEffect(() => {
         if (!id) return;
@@ -214,23 +215,36 @@ export default function EditListingPage() {
 
                 <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Crop Photo</label>
-                    <div
-                        className="flex justify-center px-6 py-6 border-2 border-gray-200 border-dashed rounded-xl bg-gray-50 cursor-pointer hover:border-CropLink-primary transition-colors"
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        {previewUrl ? (
-                            <div className="relative w-full h-40">
-                                <Image src={previewUrl} alt="Preview" fill sizes="100vw" className="object-contain rounded-lg" />
+
+                    {previewUrl ? (
+                        <div className="relative w-full h-40 border-2 border-gray-200 rounded-xl overflow-hidden">
+                            <Image src={previewUrl} alt="Preview" fill sizes="100vw" className="object-contain rounded-lg" />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div
+                                onClick={() => cameraInputRef.current?.click()}
+                                className="flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 cursor-pointer hover:border-CropLink-primary transition-colors"
+                            >
+                                <span className="text-3xl">📷</span>
+                                <p className="text-sm font-bold text-CropLink-primary">Take Photo</p>
+                                <p className="text-[10px] text-gray-400">Use camera</p>
                             </div>
-                        ) : (
-                            <div className="text-center">
-                                <Image src="/file.png" alt="File Image" className="mx-auto" width={50} height={50} />
-                                <p className="text-sm font-bold text-CropLink-primary mt-2">Upload a file</p>
-                                <p className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 cursor-pointer hover:border-CropLink-primary transition-colors"
+                            >
+                                <span className="text-3xl">🖼️</span>
+                                <p className="text-sm font-bold text-CropLink-primary">Upload File</p>
+                                <p className="text-[10px] text-gray-400">PNG, JPG up to 5MB</p>
                             </div>
-                        )}
-                        <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handleFileChange} />
-                    </div>
+                        </div>
+                    )}
+
+                    <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handleFileChange} />
+                    <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFileChange} />
+
                     {selectedFile && (
                         <div className="flex items-center justify-between mt-2 px-1">
                             <span className="text-xs text-gray-500 truncate">{selectedFile.name}</span>
