@@ -130,11 +130,13 @@ export default function CropsListing() {
                     <div className="w-[100px]">
                         <label htmlFor="currency" className="block text-xs font-bold text-gray-700 mb-1.5">Currency *</label>
                         <select id="currency" name="currency" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
-                            <option value="THB">BAHT</option>
-                            <option value="EUR">EUR</option>
-                            <option value="IDR">IDR</option>
-                            <option value="SGD">SGD</option>
                             <option value="USD">USD</option>
+                            <option value="THB">BAHT</option>
+                            <option value="IDR">IDR</option>
+                            <option value="MMK">MMK</option>
+                            <option value="LAK">LAK</option>
+                            <option value="PHP">PHP</option>
+                            
                             
                         </select>
                     </div>
