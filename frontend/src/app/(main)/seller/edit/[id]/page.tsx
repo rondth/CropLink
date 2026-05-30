@@ -31,6 +31,7 @@ export default function EditListingPage() {
     const [error, setError] = useState('');
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [removeCurrentPhoto, setRemoveCurrentPhoto] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);  
 
@@ -71,6 +72,7 @@ export default function EditListingPage() {
         }
 
         setSelectedFile(file);
+        setRemoveCurrentPhoto(false);
         setPreviewUrl(URL.createObjectURL(file));
         setError('');
     }
@@ -106,9 +108,11 @@ export default function EditListingPage() {
                 photoUrl = await uploadPhoto(selectedFile);
                 if (!photoUrl) {
                     setError('Failed to upload photo. Please try again.');
-                    setIsLoading(false);
+                    setIsSaving(false);
                     return;
                 }
+            } else if (removeCurrentPhoto) {
+                photoUrl = null;
             }
 
             const payload = {
@@ -206,18 +210,44 @@ export default function EditListingPage() {
 
                 <div>
                     <label htmlFor="status" className="block text-xs font-bold text-gray-700 mb-1.5">Status</label>
-                    <select id="status" name="status" value={listing.status || 'active'} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5">
-                        <option value="active">Active</option>
-                        <option value="sold">Sold</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
+                    <div className="relative">
+                        <select
+                            id="status"
+                            name="status"
+                            value={listing.status || 'active'}
+                            onChange={handleInputChange}
+                            className="w-full appearance-none bg-white border-2 border-gray-200 text-gray-800 text-sm font-sans font-normal rounded-xl px-3 py-2.5 pr-10 focus:outline-none focus:border-CropLink-primary"
+                        >
+                            <option value="active">Active</option>
+                            <option value="sold">Sold</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500" aria-hidden="true">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </span>
+                    </div>
                 </div>
 
                 <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Crop Photo</label>
 
                     {previewUrl ? (
-                        <div className="relative w-full h-40 border-2 border-gray-200 rounded-xl overflow-hidden">
+                        <div
+                            className="relative w-full h-40 border-2 border-gray-200 rounded-xl overflow-hidden cursor-pointer"
+                            onClick={() => fileInputRef.current?.click()}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    fileInputRef.current?.click();
+                                }
+                            }}
+                            aria-label="Replace crop photo"
+                        >
                             <Image src={previewUrl} alt="Preview" fill sizes="100vw" className="object-contain rounded-lg" />
                         </div>
                     ) : (
@@ -245,12 +275,40 @@ export default function EditListingPage() {
                     <input ref={fileInputRef} type="file" accept="image/*" className="sr-only" onChange={handleFileChange} />
                     <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFileChange} />
 
+                    <div className="grid grid-cols-2 gap-2 mt-3 w-full">
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full inline-flex items-center justify-center rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-[0.98] transition-all"
+                        >
+                            Replace Photo
+                        </button>
+
+                        {(previewUrl || listing.photo_url) && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedFile(null);
+                                    setPreviewUrl(null);
+                                    setRemoveCurrentPhoto(true);
+                                }}
+                                className="w-full inline-flex items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 active:scale-[0.98] transition-all"
+                            >
+                                Delete Photo
+                            </button>
+                        )}
+                    </div>
+
                     {selectedFile && (
                         <div className="flex items-center justify-between mt-2 px-1">
                             <span className="text-xs text-gray-500 truncate">{selectedFile.name}</span>
                             <button
                                 type="button"
-                                onClick={() => { setSelectedFile(null); setPreviewUrl(listing.photo_url ?? null); }}
+                                onClick={() => {
+                                    setSelectedFile(null);
+                                    setPreviewUrl(listing.photo_url ?? null);
+                                    setRemoveCurrentPhoto(false);
+                                }}
                                 className="text-xs text-red-400 font-bold ml-2 shrink-0"
                             >
                                 Remove

@@ -91,7 +91,7 @@ def update_listing(
     if existing.data[0]["seller_id"] != user_id:
         raise HTTPException(status_code=403, detail="You can only edit your own listings")
     
-    dump = data.model_dump(exclude_none=True)
+    dump = data.model_dump(exclude_unset=True)
 
     if "harvested_at" in dump:
         dump["harvested_at"] = dump["harvested_at"].isoformat()
