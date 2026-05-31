@@ -11,6 +11,7 @@ router = APIRouter(prefix="/listings", tags=["listings"])
 
 class ListingCreate(BaseModel):
     crop_name: str
+    category: str
     currency: str
     price: float
     unit_of_measurement: str
@@ -24,6 +25,7 @@ class ListingCreate(BaseModel):
 
 class ListingUpdate(BaseModel):
     crop_name: Optional[str] = None
+    category: Optional[str] = None
     price: Optional[float] = None
     currency: Optional[str] = None
     quantity: Optional[float] = None
