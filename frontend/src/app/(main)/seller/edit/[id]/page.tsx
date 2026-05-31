@@ -156,6 +156,16 @@ export default function EditListingPage() {
 
     return (
         <div className="p-4 pb-8">
+            <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex items-center gap-1 text-sm font-bold text-gray-500 mb-3 px-2 hover:text-gray-800 transition-colors"
+            >
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Back
+            </button>
             <h1 className="text-2xl font-black text-gray-800 mb-4 px-2">Edit Your Listing</h1>
             
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col gap-4">
