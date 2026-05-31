@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 interface Listing {
     id: string;
     crop_name: string;
+    category: string;
     price: number;
     currency: string;
     quantity: number;
@@ -117,6 +118,7 @@ export default function EditListingPage() {
 
             const payload = {
                 crop_name: listing.crop_name,
+                category: listing.category,
                 price: listing.price ? parseFloat(listing.price as any) : undefined,
                 currency: listing.currency,
                 quantity: listing.quantity ? parseFloat(listing.quantity as any) : undefined,
@@ -166,6 +168,31 @@ export default function EditListingPage() {
                 <div>
                     <label htmlFor="crop_name" className="block text-xs font-bold text-gray-700 mb-1.5">Crop Name</label>
                     <input type="text" id="crop_name" name="crop_name" value={listing.crop_name || ''} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5" />
+                </div>
+
+                <div>
+                    <label htmlFor="category" className="block text-xs font-bold text-gray-700 mb-1.5">Category</label>
+                    <div className="relative">
+                        <select
+                            id="category"
+                            name="category"
+                            value={listing.category || ''}
+                            onChange={handleInputChange}
+                            className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5 pr-10 outline-none focus:border-CropLink-primary"
+                        >
+                            <option value="">Select a category</option>
+                                <option value="grains">Cereals & Tubers</option>
+                                <option value="fruits">Meat, Fish & Eggs</option>
+                                <option value="grains">Oil & Fats</option>
+                                <option value="legumes">Pulses & Nuts</option>
+                                <option value="vegetables">Vegetables & Fruits</option>
+                            </select>
+                        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </span>
+                    </div>
                 </div>
 
                 <div>

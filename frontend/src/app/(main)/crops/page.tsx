@@ -82,6 +82,7 @@ export default function CropsListing() {
             
             const payload = {
                 crop_name: formData.get('crop_name'),
+                category: formData.get('category'),
                 price: parseFloat(formData.get('price') as string),
                 currency: formData.get('currency'),
                 quantity: parseFloat(formData.get('quantity') as string),
@@ -118,6 +119,19 @@ export default function CropsListing() {
                 <div>
                     <label htmlFor="crop_name" className="block text-xs font-bold text-gray-700 mb-1.5">Crop Name *</label>
                     <input required type="text" id="crop_name" name="crop_name" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., Organic Carrots" />
+                </div>
+
+                {/* category */}
+                <div>
+                    <label htmlFor="category" className="block text-xs font-bold text-gray-700 mb-1.5">Category *</label>
+                    <select required id="category" name="category" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
+                        <option value="">Select a category</option>
+                        <option value="grains">Cereals & Tubers</option>
+                        <option value="fruits">Meat, Fish & Eggs</option>
+                        <option value="grains">Oil & Fats</option>
+                        <option value="legumes">Pulses & Nuts</option>
+                        <option value="vegetables">Vegetables & Fruits</option>
+                    </select>
                 </div>
 
                 <div className="flex gap-3">
