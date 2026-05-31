@@ -5,7 +5,7 @@ import Image from 'next/image';
 export default function Header() {
 
 return (
-    <div className="bg-CropLink-primary px-4 pt-3 pb-1 shrink-0 select-none">
+    <div className="bg-CropLink-primary px-4 pb-1 shrink-0 select-none pt-[calc(0.75rem+env(safe-area-inset-top))]">
 
         <div className="flex items-center gap-2 mb-2.5 py-1.5 ">
             <div className="text-white text-lg font-black tracking-tighter flex items-center gap-0.5">
