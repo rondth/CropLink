@@ -8,7 +8,7 @@
         <div onClick={onClick} className="bg-white rounded-xl overflow-hidden border border-gray-100 cursor-pointer transition-transform duration-120 active:scale-[0.97]">
         <div className="h-[130px] flex items-center justify-center text-5xl bg-[#f7f5f0] relative select-none">
             {product.photo_url ? (
-                <Image src={product.photo_url === 'NULL' ? '/crop.svg' : product.photo_url} alt={product.crop_name} fill className="object-contain" />
+                <Image src={product.photo_url === 'NULL' ? '/crop.svg' : product.photo_url} alt={product.crop_name} fill className="object-cover" />
             ) : (
                 <Image src="/crop.svg" alt={product.crop_name} fill className="object-contain" /> 
             )}
