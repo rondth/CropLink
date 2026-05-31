@@ -20,6 +20,13 @@
     -moz-appearance: textfield;
     }
 
-    input, textarea, select {
-    font-size: 16px;
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    textarea,
+    select {
+    font-size: 16px !important;
     }
