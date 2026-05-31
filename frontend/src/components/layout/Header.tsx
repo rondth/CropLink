@@ -12,6 +12,7 @@ return (
                 <Image src="/logo.png" alt="CropLink Logo" width={24} height={24} className="w-6 h-6 object-contain" />
                 <div className="relative">
                     <p>CropLink</p>
+                    <div className="absolute bottom-[7px] -right-2.5 w-1.5 h-1.5 bg-CropLink-primaryLight rounded-full" />
                 </div>
             </div>
 
