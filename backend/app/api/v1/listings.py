@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from datetime import datetime
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
+from urllib.parse import unquote
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -141,6 +142,7 @@ def get_categories():
 # GET /listings/category/{category}
 @router.get("/category/{category}")
 def get_listings_by_category(category: str):
+    decoded_category = unquote(category)
     response = supabase.table("crops_listings").select("*").eq("category", category).eq("status", "active").execute()
     return response.data
 

@@ -126,11 +126,11 @@ export default function CropsListing() {
                     <label htmlFor="category" className="block text-xs font-bold text-gray-700 mb-1.5">Category *</label>
                     <select required id="category" name="category" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
                         <option value="">Select a category</option>
-                        <option value="grains">Cereals & Tubers</option>
-                        <option value="fruits">Meat, Fish & Eggs</option>
-                        <option value="grains">Oil & Fats</option>
-                        <option value="legumes">Pulses & Nuts</option>
-                        <option value="vegetables">Vegetables & Fruits</option>
+                        <option value="Cereals & Tubers">Cereals & Tubers</option>
+                        <option value="Meat, Fish & Eggs">Meat, Fish & Eggs</option>
+                        <option value="Oil & Fats">Oil & Fats</option>
+                        <option value="Pulses & Nuts">Pulses & Nuts</option>
+                        <option value="Vegetables & Fruits">Vegetables & Fruits</option>
                     </select>
                 </div>
 

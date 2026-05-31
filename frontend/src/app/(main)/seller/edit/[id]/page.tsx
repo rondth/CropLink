@@ -191,11 +191,11 @@ export default function EditListingPage() {
                             className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5 pr-10 outline-none focus:border-CropLink-primary"
                         >
                             <option value="">Select a category</option>
-                                <option value="grains">Cereals & Tubers</option>
-                                <option value="fruits">Meat, Fish & Eggs</option>
-                                <option value="grains">Oil & Fats</option>
-                                <option value="legumes">Pulses & Nuts</option>
-                                <option value="vegetables">Vegetables & Fruits</option>
+                                <option value="Cereals & Tubers">Cereals & Tubers</option>
+                                <option value="Meat, Fish & Eggs">Meat, Fish & Eggs</option>
+                                <option value="Oil & Fats">Oil & Fats</option>
+                                <option value="Pulses & Nuts">Pulses & Nuts</option>
+                                <option value="Vegetables & Fruits">Vegetables & Fruits</option>
                             </select>
                         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">
                             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
