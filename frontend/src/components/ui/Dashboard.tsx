@@ -208,7 +208,7 @@ export default function Dashboard() {
     const handleRemove = async (listingId: string, listingName: string) => {
         if (window.confirm(`Are you sure you want to delete "${listingName}"? This action cannot be undone.`)) {
             try {
-                await api.delete(`/listings/${listingId}/`);
+                await api.delete(`/listings/${listingId}`);
                 setMyListings(prevListings => prevListings.filter(l => l.id !== listingId));
                 alert('Listing deleted successfully.');
             } catch (error) {

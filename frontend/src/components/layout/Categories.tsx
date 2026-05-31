@@ -4,6 +4,26 @@ import Image from 'next/image';
 import SearchBar from '@/components/ui/SearchBar';
 import {api} from '@/lib/api';
 
+const categoryIconMap: Record<string, string> = {
+    all: '/all.png',
+    cerealstubers: '/cerealstubers.png',
+    meatfisheggs: '/meatfisheggs.png',
+    oilfats: '/oilfats.png',
+    pulsesnuts: '/pulsesnuts.png',
+    vegetablesfruits: '/vegetablesfruits.png',
+};
+
+const normalizeCategoryKey = (categoryName: string) =>
+    categoryName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+
+const getCategoryIcon = (categoryName: string) => {
+    const key = normalizeCategoryKey(categoryName);
+    return categoryIconMap[key] || '/file.png';
+};
+
 export default function Categories({ 
     selectedCategory, 
     onSelectCategory,
@@ -54,7 +74,7 @@ export default function Categories({
             {categories.map((categoryName) => (
                 <div key={categoryName} onClick={() => onSelectCategory(categoryName)} className="flex flex-col items-center gap-1 cursor-pointer shrink-0 w-16">
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg transition-colors ${selectedCategory === categoryName ? 'bg-white/40' : 'bg-white/20'}`}>
-                    <Image src="/vegetable.png" alt={categoryName} width={24} height={24} />
+                    <Image src={getCategoryIcon(categoryName)} alt={categoryName} width={24} height={24} />
                 </div>
                 <span className="text-[9px] font-bold text-white/85 text-center break-words leading-tight">{categoryName}</span>
                 </div>

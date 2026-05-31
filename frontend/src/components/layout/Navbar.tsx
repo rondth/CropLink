@@ -25,7 +25,7 @@
     const tabs = role === 'seller' ? tabsSeller : tabsBuyer;
     
     return (
-        <nav className="flex bg-white border-t border-gray-200 shrink-0 select-none py-2">
+        <nav className="flex bg-white border-t border-gray-200 shrink-0 select-none pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         {tabs.map(tab => {
             const isActive = pathname === tab.href;
             return (

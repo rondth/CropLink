@@ -11,12 +11,13 @@ export default function MobileLayout({
     showChrome?: boolean;
 }) {
     return (
-        <div className="bg-gray-100 min-h-screen py-5 flex justify-center items-center">
-            <div className="bg-[#faf8f5] w-[360px] rounded-[40px] border-8 border-CropLink-dark overflow-hidden h-[740px] flex flex-col relative shadow-2xl">
+        <div className="bg-gray-100 sm:min-h-screen sm:py-5 sm:flex sm:justify-center sm:items-center">
+            <div className="bg-[#faf8f5] flex flex-col relative overflow-hidden w-full h-[100dvh]
+                            sm:w-[360px] sm:h-[740px] sm:rounded-[40px] sm:border-8 sm:border-CropLink-dark sm:shadow-2xl">
                 {showChrome && <Header />}
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                    {children}
-                </div>
+                    <div className="flex-1 overflow-y-auto no-scrollbar overscroll-none">
+                        {children}
+                    </div>
                 {showChrome && <Navbar />}
             </div>
         </div>

@@ -5,14 +5,13 @@ import Image from 'next/image';
 export default function Header() {
 
 return (
-    <div className="bg-CropLink-primary px-4 pt-3 pb-1 shrink-0 select-none">
+    <div className="bg-CropLink-primary px-4 pb-1 shrink-0 select-none pt-[calc(0.75rem+env(safe-area-inset-top))]">
 
         <div className="flex items-center gap-2 mb-2.5 py-1.5 ">
             <div className="text-white text-lg font-black tracking-tighter flex items-center gap-0.5">
                 <Image src="/logo.png" alt="CropLink Logo" width={24} height={24} className="w-6 h-6 object-contain" />
                 <div className="relative">
                     <p>CropLink</p>
-                    <div className="absolute bottom-[7px] -right-2.5 w-1.5 h-1.5 bg-CropLink-primaryLight rounded-full" />
                 </div>
             </div>
 

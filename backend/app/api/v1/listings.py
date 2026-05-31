@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from datetime import datetime
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
+from urllib.parse import unquote
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/listings", tags=["listings"])
 
 class ListingCreate(BaseModel):
     crop_name: str
+    category: str
     currency: str
     price: float
     unit_of_measurement: str
@@ -24,6 +26,7 @@ class ListingCreate(BaseModel):
 
 class ListingUpdate(BaseModel):
     crop_name: Optional[str] = None
+    category: Optional[str] = None
     price: Optional[float] = None
     currency: Optional[str] = None
     quantity: Optional[float] = None
@@ -91,7 +94,7 @@ def update_listing(
     if existing.data[0]["seller_id"] != user_id:
         raise HTTPException(status_code=403, detail="You can only edit your own listings")
     
-    dump = data.model_dump(exclude_none=True)
+    dump = data.model_dump(exclude_unset=True)
 
     if "harvested_at" in dump:
         dump["harvested_at"] = dump["harvested_at"].isoformat()
@@ -139,6 +142,7 @@ def get_categories():
 # GET /listings/category/{category}
 @router.get("/category/{category}")
 def get_listings_by_category(category: str):
+    decoded_category = unquote(category)
     response = supabase.table("crops_listings").select("*").eq("category", category).eq("status", "active").execute()
     return response.data
 
