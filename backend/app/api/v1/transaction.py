@@ -1,0 +1,59 @@
+import os, stripe
+from fastapi import APIRouter, HTTPException, Request
+from supabase import create_client
+from dotenv import load_dotenv
+
+load_dotenv()
+
+router = APIRouter()
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+
+@router.post("/transactions")
+async def create_transaction(payload: dict):
+    txn = supabase.table("transaction").insert({
+        "listing_id": payload["listing_id"],
+        "buyer_id": payload["buyer_id"],
+        "seller_id": payload["seller_id"],
+        "quantity": payload["quantity"],
+        "currency": payload["currency"],
+        "status": "pending",
+    }).execute()
+
+    txn_id = txn.data[0]["id"]
+
+    intent = stripe.PaymentIntent.create(
+        amount=int(payload["amount"] * 100), # Stripe uses cents
+        currency="sgd",
+        metadata={"transaction_id": str(txn_id)}
+    )
+
+    return {"client_secret": intent.client_secret, "transaction_id": txn_id}
+
+@router.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.getenv("STRIPE_WEBHOOK_SECRET")
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    if event["type"] == "payment_intent.succeeded":
+        txn_id = event["data"]["object"]["metadata"]["transaction_id"]
+        supabase.table("payments").update(
+            {"status": "completed"}
+        ).eq("transaction_id", txn_id).execute()
+    elif event["type"] == "payment_intent.payment_failed":
+        txn_id = event["data"]["object"]["metadata"]["transaction_id"]
+        supabase.table("payments").update(
+            {"status": "failed"}
+        ).eq("transaction_id", txn_id).execute()
+
+    return {"status": "ok"}
