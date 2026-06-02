@@ -29,6 +29,14 @@ async def create_transaction(payload: dict):
         metadata={"transaction_id": str(txn_id)}
     )
 
+    supabase.table("payments").insert({
+        "transaction_id": txn_id,
+        "stripe_id": intent.id,
+        "amount": payload["amount"],
+        "currency": payload["currency"],
+        "status": "pending"
+    }).execute()
+
     return {"client_secret": intent.client_secret, "transaction_id": txn_id}
 
 @router.post("/stripe/webhook")
