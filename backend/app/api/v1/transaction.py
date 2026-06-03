@@ -2,6 +2,7 @@ import os, stripe
 from fastapi import APIRouter, HTTPException, Request
 from supabase import create_client
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 load_dotenv()
 
@@ -10,14 +11,22 @@ router = APIRouter()
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
 
+class TransactionCreate(BaseModel):
+    listing_id: str
+    buyer_id: str
+    seller_id: str
+    quantity: float
+    amount: float
+    currency: str = "sgd"
+
 @router.post("/transactions")
-async def create_transaction(payload: dict):
+async def create_transaction(payload: TransactionCreate):
     txn = supabase.table("transaction").insert({
-        "listing_id": payload["listing_id"],
-        "buyer_id": payload["buyer_id"],
-        "seller_id": payload["seller_id"],
-        "quantity": payload["quantity"],
-        "currency": payload["currency"],
+        "listing_id": payload.listing_id,
+        "buyer_id": payload.buyer_id,
+        "seller_id": payload.seller_id,
+        "quantity": payload.quantity,
+        "currency": payload.currency,
         "status": "pending",
     }).execute()
 
@@ -32,8 +41,8 @@ async def create_transaction(payload: dict):
     supabase.table("payments").insert({
         "transaction_id": txn_id,
         "stripe_id": intent.id,
-        "amount": payload["amount"],
-        "currency": payload["currency"],
+        "amount": payload.amount,
+        "currency": payload.currency,
         "status": "pending"
     }).execute()
 
@@ -55,13 +64,11 @@ async def stripe_webhook(request: Request):
     
     if event["type"] == "payment_intent.succeeded":
         txn_id = event["data"]["object"]["metadata"]["transaction_id"]
-        supabase.table("payments").update(
-            {"status": "completed"}
-        ).eq("transaction_id", txn_id).execute()
+        supabase.table("payments").update({"status": "completed"}).eq("transaction_id", txn_id).execute()
+        supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
     elif event["type"] == "payment_intent.payment_failed":
         txn_id = event["data"]["object"]["metadata"]["transaction_id"]
-        supabase.table("payments").update(
-            {"status": "failed"}
-        ).eq("transaction_id", txn_id).execute()
+        supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
+        supabase.table("transaction").update({"status": "failed"}).eq("id", txn_id).execute()
 
     return {"status": "ok"}
