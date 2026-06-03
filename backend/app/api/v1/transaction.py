@@ -66,10 +66,11 @@ async def stripe_webhook(request: Request):
         txn_id = event["data"]["object"]["metadata"]["transaction_id"]
         supabase.table("payments").update({"status": "completed"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
-    elif event["type"] == "payment_intent.payment_failed":
+    elif event["type"] in ("payment_intent.payment_failed", "payment_intent.cancelled"):
+        status_val = "failed" if "failed" in event["type"] else "cancelled"
         txn_id = event["data"]["object"]["metadata"]["transaction_id"]
-        supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
-        supabase.table("transaction").update({"status": "failed"}).eq("id", txn_id).execute()
+        supabase.table("payments").update({"status": status_val}).eq("transaction_id", txn_id).execute()
+        supabase.table("transaction").update({"status": status_val}).eq("id", txn_id).execute()
 
     return {"status": "ok"}
 
