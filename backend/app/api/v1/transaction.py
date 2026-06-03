@@ -72,3 +72,11 @@ async def stripe_webhook(request: Request):
         supabase.table("transaction").update({"status": "failed"}).eq("id", txn_id).execute()
 
     return {"status": "ok"}
+
+@router.post("/transactions/{txn_id}/cancel")
+async def cancel_transaction(txn_id: str):
+    payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
+    stripe.PaymentIntent.cancel(payment.data["stripe_id"])
+    supabase.table("payments").update({"status": "cancelled"}).eq("transaction_id", txn_id).execute()
+    supabase.table("transactions").update({"status": "cancelled"}).eq("id", txn_id).execute()
+    return {"status": "cancelled"}
