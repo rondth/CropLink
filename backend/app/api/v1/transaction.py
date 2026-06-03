@@ -80,3 +80,9 @@ async def cancel_transaction(txn_id: str):
     supabase.table("payments").update({"status": "cancelled"}).eq("transaction_id", txn_id).execute()
     supabase.table("transactions").update({"status": "cancelled"}).eq("id", txn_id).execute()
     return {"status": "cancelled"}
+
+@router.get("/transactions/{txn_id}")
+async def get_transaction(txn_id: str):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    payment = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).single().execute()
+    return {**txn.data, "payment": payment.data}
