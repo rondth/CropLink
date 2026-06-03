@@ -1,8 +1,9 @@
 import os, stripe
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from supabase import create_client
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from app.core.dependencies import get_current_user_id
 
 load_dotenv()
 
@@ -13,17 +14,16 @@ supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_
 
 class TransactionCreate(BaseModel):
     listing_id: str
-    buyer_id: str
     seller_id: str
     quantity: float
     amount: float
     currency: str = "sgd"
 
 @router.post("/transactions")
-async def create_transaction(payload: TransactionCreate):
+async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends(get_current_user_id)):
     txn = supabase.table("transaction").insert({
         "listing_id": payload.listing_id,
-        "buyer_id": payload.buyer_id,
+        "buyer_id": buyer_id,
         "seller_id": payload.seller_id,
         "quantity": payload.quantity,
         "currency": payload.currency,
@@ -33,7 +33,7 @@ async def create_transaction(payload: TransactionCreate):
     txn_id = txn.data[0]["id"]
 
     intent = stripe.PaymentIntent.create(
-        amount=int(payload["amount"] * 100), # Stripe uses cents
+        amount=int(payload.amount * 100), # Stripe uses cents
         currency="sgd",
         metadata={"transaction_id": str(txn_id)}
     )
@@ -73,16 +73,27 @@ async def stripe_webhook(request: Request):
 
     return {"status": "ok"}
 
+@router.get("/transactions/{txn_id}")
+async def get_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["buyer_id"] != user_id and txn.data["seller_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this transaction")
+    
+    payment = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).single().execute()
+    return {**txn.data, "payment": payment.data}
+
 @router.post("/transactions/{txn_id}/cancel")
-async def cancel_transaction(txn_id: str):
+async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["buyer_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the buyer can cancel this transaction")
+    
     payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
     stripe.PaymentIntent.cancel(payment.data["stripe_id"])
     supabase.table("payments").update({"status": "cancelled"}).eq("transaction_id", txn_id).execute()
-    supabase.table("transactions").update({"status": "cancelled"}).eq("id", txn_id).execute()
+    supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
     return {"status": "cancelled"}
-
-@router.get("/transactions/{txn_id}")
-async def get_transaction(txn_id: str):
-    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
-    payment = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).single().execute()
-    return {**txn.data, "payment": payment.data}
