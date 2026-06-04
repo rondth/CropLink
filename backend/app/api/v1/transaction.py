@@ -27,6 +27,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         "buyer_id": buyer_id,
         "seller_id": payload.seller_id,
         "quantity": payload.quantity,
+        "amount": payload.amount,
         "currency": payload.currency,
         "status": "pending",
     }).execute()
@@ -125,6 +126,8 @@ async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Transaction not found")
     if txn.data["buyer_id"] != user_id:
         raise HTTPException(status_code=403, detail="Only the buyer can cancel this transaction")
+    if txn.data["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Cannot cancel a transaction with status '{txn.data['status']}'")
     
     payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
     stripe.PaymentIntent.cancel(payment.data["stripe_id"])
