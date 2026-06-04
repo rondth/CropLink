@@ -39,6 +39,19 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         metadata={"transaction_id": str(txn_id)}
     )
 
+    listing = supabase.table("crops_listings").select("quantity, min_order_quantity, status, seller_id").eq("id", payload.listing_id).single().execute()
+
+    if not listing.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.data["status"] != "active":
+        raise HTTPException(status_code=400, detail="Listing is no longer active")
+    if listing.data["seller_id"] == buyer_id:
+        raise HTTPException(status_code=400, detail="You cannot buy your own listing")
+    if payload.quantity < listing.data["min_order_quantity"]:
+        raise HTTPException(status_code=400, detail=f"Minimum order quantity is {listing.data['min_order_quantity']}")
+    if payload.quantity > listing.data["quantity"]:
+        raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
+
     supabase.table("payments").insert({
         "transaction_id": txn_id,
         "stripe_id": intent.id,
@@ -67,6 +80,15 @@ async def stripe_webhook(request: Request):
         txn_id = event["data"]["object"]["metadata"]["transaction_id"]
         supabase.table("payments").update({"status": "completed"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+
+        # Reduce listing quantity
+        txn = supabase.table("transaction").select("listing_id", "quantity").eq("id", txn_id).single().execute()
+        listing = supabase.table("crops_listings").select("quantity").eq("id", txn.data["listing_id"]).single().execute()
+        new_qty = listing.data["quantity"] - txn.data["quantity"]
+        supabase.table("crops_listings").update({
+            "quantity": new_qty, 
+            "status": "sold" if new_qty == 0 else listing.data["status"]
+        }).eq("id", txn.data["listing_id"]).execute()
     elif event["type"] in ("payment_intent.payment_failed", "payment_intent.cancelled"):
         status_val = "failed" if "failed" in event["type"] else "cancelled"
         txn_id = event["data"]["object"]["metadata"]["transaction_id"]

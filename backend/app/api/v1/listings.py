@@ -119,7 +119,7 @@ def create_listing(
 # GET /listings
 @router.get("/")
 def get_listings():
-    response = supabase.table("crops_listings").select("*").eq("status", "active").execute()
+    response = supabase.table("crops_listings").select("*").eq("status", "active").gt("quantity", 0).execute()
     return response.data
 
 # GET /listings/me
