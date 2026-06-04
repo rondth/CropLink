@@ -4,6 +4,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
+from typing import Literal
 
 load_dotenv()
 
@@ -73,6 +74,16 @@ async def stripe_webhook(request: Request):
         supabase.table("transaction").update({"status": status_val}).eq("id", txn_id).execute()
 
     return {"status": "ok"}
+
+@router.get("/transactions")
+async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Literal["asc", "desc"] = "desc"):
+    bought = supabase.table("transaction").select("*").eq("buyer_id", user_id).execute()
+    sold = supabase.table("transaction").select("*").eq("seller_id", user_id).execute()
+
+    all_txns = bought.data + sold.data
+
+    all_txns.sort(key=lambda x: x.get("created_at", ""), reverse=(sort == "desc"))
+    return {"transactions": all_txns}
 
 @router.get("/transactions/{txn_id}")
 async def get_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
