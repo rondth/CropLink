@@ -40,7 +40,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         "buyer_id": buyer_id,
         "seller_id": listing.data["seller_id"],
         "quantity": payload.quantity,
-        "currency": listing_currency,
+        "currency": listing_currency.upper(),
         "status": "pending",
     }).execute()
 
@@ -60,7 +60,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         "transaction_id": txn_id,
         "stripe_id": intent.id,
         "amount": amount,
-        "currency": listing_currency,
+        "currency": listing_currency.upper(),
         "status": "pending"
     }).execute()
 
@@ -85,7 +85,7 @@ async def stripe_webhook(request: Request):
         txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
         if not txn_id:
             return {"status": "ignored"}
-        supabase.table("payments").update({"status": "completed"}).eq("transaction_id", txn_id).execute()
+        supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
 
         # Reduce listing quantity
@@ -98,13 +98,12 @@ async def stripe_webhook(request: Request):
         except Exception as e:
             print(f"Failed to reduce listing quantity for txn {txn_id}: {e}")
     elif event["type"] in ("payment_intent.payment_failed", "payment_intent.cancelled"):
-        status_val = "failed" if "failed" in event["type"] else "cancelled"
         metadata = event["data"]["object"]["metadata"]
         txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
         if not txn_id:
             return {"status": "ignored"}
-        supabase.table("payments").update({"status": status_val}).eq("transaction_id", txn_id).execute()
-        supabase.table("transaction").update({"status": status_val}).eq("id", txn_id).execute()
+        supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
+        supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
 
     return {"status": "ok"}
 
