@@ -19,6 +19,23 @@ class TransactionCreate(BaseModel):
 
 @router.post("/transactions")
 async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends(get_current_user_id)):
+    existing = supabase.table("transaction") \
+        .select("id") \
+        .eq("listing_id", payload.listing_id) \
+        .eq("buyer_id", buyer_id) \
+        .eq("status", "pending") \
+        .execute()
+    
+    if existing.data:
+        existing_txn_id = existing.data[0]["id"]
+        existing_payment = supabase.table("payments") \
+            .select("stripe_id") \
+            .eq("transaction_id", existing_txn_id) \
+            .single().execute()
+        
+        intent = stripe.PaymentIntent.retrieve(existing_payment.data["stripe_id"])
+        return {"client_secret": intent.client_secret, "transaction_id": existing_txn_id}
+    
     listing = supabase.table("crops_listings").select("id, price, quantity, min_order_quantity, status, seller_id, currency").eq("id", payload.listing_id).single().execute()
 
     if not listing.data:

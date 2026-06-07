@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -113,6 +113,7 @@ function CheckoutForm({
 function CheckoutContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const hasInitialized = useRef(false);
 
     const listingId = searchParams.get('listing_id');
     const quantityParam = searchParams.get('quantity');
@@ -129,6 +130,8 @@ function CheckoutContent() {
             router.replace('/');
             return;
         }
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
 
         const init = async () => {
             try {
