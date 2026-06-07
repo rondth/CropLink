@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -8,6 +8,20 @@ import { useAuth } from '@/lib/AuthContext';
 export default function ProductDetails({ product, onBack }: { product: any, onBack: () => void }) {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
+    const [marketPrice, setMarketPrice] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchMarketData = async () => {
+            try {
+                const response = await api.get(`/listings/prices/${product.produce_id}?currency=${product.currency}`);
+                setMarketPrice(response.data);
+            } catch (err) {
+                console.error("Market data fetch failed:", err);
+            }
+        };
+        if (product.id) fetchMarketData();
+    }, [product.id, product.currency]);
+
     const title = product.crop_name || product.name || 'Unknown Crop';
     const unit = product.unit_of_measurement || product.unit || 'unit';
     const minOrder = product.min_order_quantity || 1;
@@ -51,7 +65,7 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
                 {product.photo_url ? (
                     <Image src={product.photo_url} alt={title} fill className="object-contain" />
                 ) : (
-                    <Image src="/crop.svg" alt={title} fill className="object-cover" />
+                    <Image src="/crop.svg" alt={title} fill className="object-contain" />
                 )}
                 <button onClick={onBack} className="absolute top-4 left-4 w-8 h-8 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 active:scale-95 transition-transform">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -70,6 +84,56 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
                     <span className="text-CropLink-dark">{product.quantity} {unit} avail.</span>
                 </div>
             </div>
+
+            {/* market price analysis */}
+            {marketPrice && (
+                <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl mx-0">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-black text-gray-800">Market Price Analysis</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.price <= marketPrice.avg_price ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {product.price <= marketPrice.avg_price ? 'Great Value' : 'Premium Price'}
+                        </span>
+                    </div>
+                    
+                    <div className="relative pt-6 pb-2 px-1">
+                        <div className="h-2 w-full bg-gray-100 rounded-full relative">
+                            {/* range highlight (Min to Max span) */}
+                            <div className="absolute h-full bg-CropLink-primary/10 rounded-full w-full"></div>
+                            
+                            {/* Average Marker */}
+                            {(() => {
+                                const range = marketPrice.max_price - marketPrice.min_price;
+                                const pos = range > 0 ? ((marketPrice.avg_price - marketPrice.min_price) / range) * 100 : 50;
+                                const clampedPos = Math.max(0, Math.min(100, pos));
+                                return (
+                                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-5 bg-gray-300 z-10" style={{ left: `${clampedPos}%` }}>
+                                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Avg</span>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Current Price Marker */}
+                            {(() => {
+                                const range = marketPrice.max_price - marketPrice.min_price;
+                                const pos = range > 0 ? ((product.price - marketPrice.min_price) / range) * 100 : 50;
+                                const clampedPos = Math.max(0, Math.min(100, pos));
+                                return (
+                                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 transition-all duration-500" style={{ left: `${clampedPos}%` }}>
+                                        <div className="w-4 h-4 bg-CropLink-primary border-2 border-white rounded-full shadow-md"></div>
+                                        <span className="text-[10px] font-black text-CropLink-primary mt-1 whitespace-nowrap">You</span>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Labels */}
+                        <div className="flex justify-between mt-6">
+                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.min_price}</span></div>
+                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.max_price}</span></div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* product description */}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl flex-1 flex flex-col">
