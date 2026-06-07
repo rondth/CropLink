@@ -104,11 +104,11 @@ export const getTransactions = async (
 }
 
 export const getTransaction = async (txn_id: string): Promise<Transaction> => {
-    const response = await api.get<Transaction>('/transactions/${txn_id}');
+    const response = await api.get<Transaction>(`/transactions/${txn_id}`);
     return response.data;
 }
 
 export const cancelTransaction = async (txn_id: string): Promise<{ status: string }> => {
-    const response = await api.post<{ status: string }>('/transactions/${txn_id}/cancel');
+    const response = await api.post<{ status: string }>(`/transactions/${txn_id}/cancel`);
     return response.data;
 }

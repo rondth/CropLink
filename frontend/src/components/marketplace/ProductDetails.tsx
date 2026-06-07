@@ -14,31 +14,16 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
     const maxQty = product.quantity ?? 0;
     
     const [quantity, setQuantity] = useState(minOrder);
-    const [isOrdering, setIsOrdering] = useState(false);
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
 
-    const handleOrder = async () => {
+    const handleOrder = () => {
         if (!isAuthenticated) {
             router.push('/login');
             return;
         }
-        
-        setIsOrdering(true);
-        try {
-            const payload = {
-                listing_id: product.id,
-                quantity: quantity,
-            };
-            await api.post('/transactions/', payload);
-            router.push('/orders');
-        } catch (error) {
-            console.error("Failed to create transaction:", error);
-            alert("Failed to place order. Please try again.");
-        } finally {
-            setIsOrdering(false);
-        }
+        router.push(`/checkout?listing_id=${product.id}&quantity=${quantity}`);
     };
 
     const harvestedDate = product.harvested_at 
@@ -105,10 +90,10 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
                 </div>
                 <button 
                     onClick={handleOrder} 
-                    disabled={isOrdering || quantity < minOrder || quantity > maxQty || maxQty === 0} 
+                    disabled={quantity < minOrder || quantity > maxQty || maxQty === 0} 
                     className="bg-CropLink-primary text-white font-black text-sm py-3 px-6 rounded-xl shadow-md shadow-CropLink-primary/30 active:scale-95 transition-all flex-1 ml-4 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 >
-                    {isOrdering ? 'Placing Order...' : 'Order Now'}
+                    Order Now
                 </button>
             </div>
         </div>

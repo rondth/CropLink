@@ -14,8 +14,8 @@ export default function OrdersPage() {
         if (!authLoading && !isAuthenticated) return;
         const fetchOrders = async () => {
             try {
-                const response = await api.get('/transactions/');
-                setOrders(response.data);
+                const response = await api.get('/transactions');
+                setOrders(response.data.transactions ?? []);
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
             } finally {
