@@ -66,16 +66,15 @@ export default function OrderDetailPage() {
         fetchOrder();
     }, [isAuthenticated, authLoading, transactionId]);
 
-    const handleStatusUpdate = async (newStatus: 'completed' | 'cancelled') => {
+    const handleCancel = async () => {
         if (!order) return;
         setUpdating(true);
         try {
-            const response = await api.patch(`/transactions/${order.id}/status`, null, {
-                params: { new_status: newStatus },
-            });
-            setOrder(prev => prev ? { ...prev, status: response.data.status } : prev);
+            await api.post(`/transactions/${order.id}/cancel`);
+            setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
         } catch (err: any) {
-            alert(err?.response?.data?.detail || 'Failed to update status.');
+            console.log(err?.response);
+            alert(err?.response?.data?.detail || 'Failed to cancel order.');
         } finally {
             setUpdating(false);
         }
@@ -232,28 +231,16 @@ export default function OrderDetailPage() {
                 </div>
             )}
 
-            {/* Seller actions: mark as completed / cancelled */}
-            {role === 'seller' && order.status === 'pending' && (
+            {/* Cancel order (buyer only, pending orders) */}
+            {role === 'buyer' && order.status === 'pending' && (
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">
-                        Update Order Status
-                    </p>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => handleStatusUpdate('completed')}
-                            disabled={updating}
-                            className="flex-1 bg-green-500 text-white font-bold text-sm py-3 rounded-xl disabled:opacity-50 active:scale-95 transition-transform"
-                        >
-                            Mark Completed
-                        </button>
-                        <button
-                            onClick={() => handleStatusUpdate('cancelled')}
-                            disabled={updating}
-                            className="flex-1 bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
-                        >
-                            Cancel Order
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleCancel}
+                        disabled={updating}
+                        className="w-full bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
+                    >
+                        Cancel Order
+                    </button>
                 </div>
             )}
 

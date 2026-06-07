@@ -162,7 +162,12 @@ async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_use
         raise HTTPException(status_code=400, detail=f"Cannot cancel a transaction with status '{txn.data['status']}'")
     
     payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
-    stripe.PaymentIntent.cancel(payment.data["stripe_id"])
-    supabase.table("payments").update({"status": "cancelled"}).eq("transaction_id", txn_id).execute()
+    
+    try:
+        stripe.PaymentIntent.cancel(payment.data["stripe_id"])
+    except stripe.error.InvalidRequestError:
+        pass  # Already cancelled in Stripe, just update our DB
+    
+    supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
     return {"status": "cancelled"}
