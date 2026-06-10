@@ -218,6 +218,53 @@ def get_all_product_price_data(currency:str = "USD"):
 
     return data_list
 
+# GET /listings/prices/{produce_id}/history
+@router.get("/prices/{produce_id}/history")
+def get_product_price_history(produce_id: str, days: int = 7, currency: str = "USD"):
+    from datetime import date, timedelta
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+
+    price_response = (
+        supabase.table("price_data")
+        .select("avg_price, min_price, max_price, recorded_at")
+        .eq("crop_id", produce_id)
+        .gte("recorded_at", cutoff)
+        .order("recorded_at", desc=False)
+        .execute()
+    )
+    if not price_response.data:
+        return []
+
+    data = price_response.data
+    target_currency = currency.upper()
+
+    if target_currency != "USD":
+        rate_response = (
+            supabase.table("exchange_rate")
+            .select("rate_to_usd")
+            .eq("currency", target_currency)
+            .order("date", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not rate_response.data:
+            raise HTTPException(status_code=404, detail="Exchange rate not found for this currency")
+
+        rate_to_usd = rate_response.data[0]["rate_to_usd"]
+        zero_decimal = {"IDR", "LAK", "MMK", "VND"}
+        rounder = round if target_currency in zero_decimal else lambda v, n=2: round(v, n)
+
+        for d in data:
+            d["avg_price"] = rounder(d["avg_price"] / rate_to_usd)
+            d["min_price"] = rounder(d["min_price"] / rate_to_usd)
+            d["max_price"] = rounder(d["max_price"] / rate_to_usd)
+
+    for d in data:
+        d["currency"] = target_currency
+
+    return data
+
+
 # GET /listings/prices/{produce_id}
 @router.get("/prices/{produce_id}")
 def get_product_price_data(produce_id: str, currency:str = "USD"):
