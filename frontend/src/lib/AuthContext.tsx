@@ -2,13 +2,14 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from './api';
+import { supabase } from './supabase';
 
 export interface User {
   user_id: string;
   email: string;
   role: 'farmer' | 'buyer' | 'seller' | string; 
   name: string;
-  preferred_currency?: string;
+  preffered_currency?: string;
 }
 
 interface AuthContextType {
@@ -18,6 +19,7 @@ interface AuthContextType {
   login: (credentials: any) => Promise<void>;
   signup: (data: any) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,9 +31,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchMe = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (token) {
-        // calls the GET /auth/me endpoint in backend
-        const response = await api.get('/auth/me'); 
+      const refresh = localStorage.getItem('refresh_token');
+
+      if (token && refresh) {
+        await supabase.auth.setSession({
+          access_token: token,
+          refresh_token: refresh
+        });
+
+        const response = await api.get('/auth/me');
         setUser(response.data);
       }
     } catch (error) {
@@ -44,13 +52,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    fetchMe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+          if (session) {
+            localStorage.setItem('access_token', session.access_token);
+            localStorage.setItem('refresh_token', session.refresh_token!);
+            try {
+              const response = await api.get('/auth/me');
+              setUser(response.data);
+            } catch {
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+            }
+          }
+          setIsLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const refreshUser = async () => {
+    await fetchMe();
+    
+  };
 
   const login = async (credentials: any) => {
     const response = await api.post('/auth/login', credentials);
     const { access_token, refresh_token, ...userData } = response.data;
     
+    await supabase.auth.setSession({
+    access_token: access_token,
+    refresh_token: refresh_token
+    });
+
     localStorage.setItem('access_token', access_token);
     localStorage.setItem('refresh_token', refresh_token);
     setUser(userData);
@@ -61,6 +98,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { access_token, refresh_token, ...userData } = response.data;
     
     if (access_token) {
+      await supabase.auth.setSession({
+        access_token: access_token,
+        refresh_token: refresh_token
+      });
+
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
       setUser(userData);
@@ -70,6 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = async () => {
     try {
       await api.post('/auth/logout');
+      await supabase.auth.signOut();
     } catch (error) {
       console.error("Backend logout failed", error);
     } finally {
@@ -80,7 +123,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

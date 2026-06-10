@@ -1,8 +1,40 @@
 'use client';
     import React, { useState } from 'react';
     import Image from 'next/image';
+    import { useRouter } from 'next/navigation';
+    import { api } from '@/lib/api';
+    import { useAuth } from '@/lib/AuthContext';
     
     export default function ProductCard({ product, onClick }: { product: any, onClick?: () => void }) {
+        const router = useRouter();
+        const { isAuthenticated } = useAuth();
+        const [isLoading, setIsLoading] = useState(false);
+
+        const handleOrderNow = async (e: React.MouseEvent) => {
+            e.stopPropagation(); // Prevent card's onClick from firing if it exists
+            if (!isAuthenticated) {
+                router.push('/login');
+                return;
+            }
+    
+            setIsLoading(true);
+            try {
+                // For simplicity, we'll use the minimum order quantity.
+                // A real app might have a quantity selector.
+                const payload = {
+                    listing_id: product.id,
+                    quantity: product.min_order_quantity,
+                };
+                const response = await api.post('/transactions', payload);
+                const { transaction_id } = response.data;
+                router.push(`/checkout/${transaction_id}`);
+            } catch (error: any) {
+                console.error("Failed to create transaction", error);
+                alert(error.response?.data?.detail || 'Could not start transaction.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
     return (
         <div onClick={onClick} className="bg-white rounded-xl overflow-hidden border border-gray-100 cursor-pointer transition-transform duration-120 active:scale-[0.97]">
@@ -30,11 +62,15 @@
                 </span>
             </div>
 
-            <button className="w-full bg-CropLink-primary text-white rounded-lg py-1.5 text-[10px] font-bold mt-1.5">
-                Order Now
+            <button 
+                onClick={handleOrderNow}
+                disabled={isLoading}
+                className="w-full bg-CropLink-primary text-white rounded-lg py-1.5 text-[10px] font-bold mt-1.5 disabled:opacity-50"
+            >
+                {isLoading ? 'Processing...' : 'Order Now'}
             </button>
        
         </div>
         </div>
     );
-    }
+}
