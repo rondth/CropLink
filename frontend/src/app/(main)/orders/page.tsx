@@ -11,13 +11,19 @@ export default function OrdersPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!authLoading && !isAuthenticated) return;
+        if (!authLoading) return;
+        if (!isAuthenticated) {
+            setIsLoading(false);
+            return;
+        };
         const fetchOrders = async () => {
             try {
                 const response = await api.get('/transactions/');
-                setOrders(response.data);
+                const data = response.data;
+                setOrders(Array.isArray(data) ? data : (data.items ?? data.transactions ?? data.orders ?? []));
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
+                setOrders([]);
             } finally {
                 setIsLoading(false);
             }
