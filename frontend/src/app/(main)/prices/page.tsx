@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import ProductDetails from '@/components/marketplace/ProductDetails';
+import PriceTrendChart from '@/components/ui/PriceTrendChart';
 
 export default function PricesDashboard() {
     const { user, isLoading: authLoading } = useAuth();
@@ -110,6 +111,8 @@ export default function PricesDashboard() {
                     </div>
                 </div>
                 
+                <PriceTrendChart cropId={selectedMarketData.crop_id} currency={user?.preffered_currency || 'USD'} />
+
                 {isLoadingListings ? (
                     <div className="flex-1 flex items-center justify-center">
                         <p className="text-sm font-bold text-gray-400">Loading listings...</p>

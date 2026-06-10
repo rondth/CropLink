@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import PriceTrendChart from '@/components/ui/PriceTrendChart';
 
 export default function ProductDetails({ product, onBack, onSellerClick }: { product: any, onBack: () => void, onSellerClick?: () => void }) {
     const router = useRouter();
@@ -103,6 +104,25 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 </div>
             </div>
 
+            {/* product description */}
+            <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl flex-1 flex flex-col">
+                <h3 className="text-sm font-black text-gray-800 mb-2">Description</h3>
+                <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap mb-4">
+                    {product.description || 'No description provided for this crop listing.'}
+                </p>
+                
+                <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-3 text-xs text-gray-500">
+                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
+                        <span className="font-semibold text-gray-600">Harvested Date</span>
+                        <span className="font-black text-gray-800">{harvestedDate}</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
+                        <span className="font-semibold text-gray-600">Minimum Order</span>
+                        <span className="font-black text-CropLink-accentRed">{minOrder} {unit}</span>
+                    </div>
+                </div>
+            </div>
+            
             {/* market price analysis */}
             {marketPrice && (
                 <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl mx-0">
@@ -153,24 +173,10 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 </div>
             )}
 
-            {/* product description */}
-            <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl flex-1 flex flex-col">
-                <h3 className="text-sm font-black text-gray-800 mb-2">Description</h3>
-                <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap mb-4">
-                    {product.description || 'No description provided for this crop listing.'}
-                </p>
-                
-                <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-3 text-xs text-gray-500">
-                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
-                        <span className="font-semibold text-gray-600">Harvested Date</span>
-                        <span className="font-black text-gray-800">{harvestedDate}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl">
-                        <span className="font-semibold text-gray-600">Minimum Order</span>
-                        <span className="font-black text-CropLink-accentRed">{minOrder} {unit}</span>
-                    </div>
-                </div>
-            </div>
+            {product.produce_id && (
+                <PriceTrendChart cropId={product.produce_id} currency={product.currency || 'USD'} />
+            )}
+
 
             {/* seller profile*/}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">

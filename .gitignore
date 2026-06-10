@@ -16,7 +16,7 @@ htmlcov/
 .zshrc
 
 # ========================
-# Node / Express (Backend)
+# Node / Express (Frontend)
 # ========================
 node_modules/
 npm-debug.log*
@@ -26,6 +26,7 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 tsconfig.tsbuildinfo
+next-env.d.ts
 
 # Environment variables — NEVER commit these
 .env
