@@ -70,7 +70,16 @@ def create_listing(
 @router.get("/")
 def get_listings():
     response = supabase.table("crops_listings").select("*").eq("status", "active").execute()
-    return response.data
+    listings = response.data
+
+    seller_ids = list({l["seller_id"] for l in listings if l.get("seller_id")})
+    if seller_ids:
+        profiles = supabase.table("profiles").select("user_id, name").in_("user_id", seller_ids).execute()
+        seller_map = {p["user_id"]: p["name"] for p in profiles.data}
+        for listing in listings:
+            listing["seller_name"] = seller_map.get(listing.get("seller_id"))
+
+    return listings
 
 # GET /listings/me
 # get all listing of current logged user
@@ -151,7 +160,7 @@ def get_listings_by_category(category: str):
 def get_all_product_price_data(currency:str = "USD"):
     price_response = (
         supabase.table("price_data")
-        .select("crop_id, avg_price, min_price, max_price, recorded_at, active_listing_count, name")
+        .select("crop_id, name, avg_price, min_price, max_price, recorded_at, active_listing_count")
         .order("recorded_at", desc=True)
         .execute()
     )
@@ -179,7 +188,6 @@ def get_all_product_price_data(currency:str = "USD"):
         supabase.table("exchange_rate")
         .select("rate_to_usd")
         .eq("currency", target_currency)
-        .eq("date", date.today().isoformat())
         .order("date", desc=True)
         .limit(1)
         .execute()
@@ -217,7 +225,6 @@ def get_product_price_data(produce_id: str, currency:str = "USD"):
         supabase.table("price_data")
         .select("avg_price, min_price, max_price, recorded_at, active_listing_count")
         .eq("crop_id", produce_id)
-        .eq("recorded_at", date.today().isoformat())
         .order("recorded_at", desc=True)
         .limit(1)
         .execute()
@@ -273,9 +280,16 @@ def get_product_price_data(produce_id: str, currency:str = "USD"):
 
 def get_listing(listing_id: str):
     response = supabase.table("crops_listings").select("*").or_(f"id.eq.{listing_id},produce_id.eq.{listing_id}").limit(1).execute()
-    
+
     if not response.data:
         raise HTTPException(status_code=404, detail="Listing not found")
 
-    return response.data[0]
+    listing = response.data[0]
+
+    seller_id = listing.get("seller_id")
+    if seller_id:
+        profile = supabase.table("profiles").select("name").eq("user_id", seller_id).limit(1).execute()
+        listing["seller_name"] = profile.data[0].get("name") if profile.data else None
+
+    return listing
     

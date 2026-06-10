@@ -19,6 +19,7 @@ class AuthResponse(BaseModel):
     email: str
     role: str
     name: str
+    preffered_currency: str | None = None
     access_token: str
     refresh_token: str
 
