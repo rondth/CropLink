@@ -244,16 +244,8 @@ export default function OrderDetailPage() {
                 </div>
             )}
 
-            {/* Rating placeholder (Feature 4, Weeks 8-9) */}
-            {order.status === 'completed' && (
-                <div className="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-200 mb-3">
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">
-                        Rate this {role === 'buyer' ? 'Seller' : 'Buyer'}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                        Rating system coming soon
-                    </p>
-                </div>
+            {order.status === 'completed' && role === 'buyer' && (
+                <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review`)} />
             )}
         </div>
     );
@@ -268,6 +260,34 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
             <span className={`text-[11px] font-bold text-gray-700 text-right ${mono ? 'font-mono' : ''}`}>
                 {value}
             </span>
+        </div>
+    );
+}
+
+function ReviewCTA({ transactionId, onWrite }: { transactionId: string; onWrite: () => void }) {
+    const [reviewed, setReviewed] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        api.get(`/reviews/transaction/${transactionId}`)
+            .then(() => setReviewed(true))
+            .catch(() => setReviewed(false));
+    }, [transactionId]);
+
+    if (reviewed === null) return null;
+
+    return (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">Review</p>
+            {reviewed ? (
+                <p className="text-sm font-black text-green-600 text-center"> You've reviewed this order</p>
+            ) : (
+                <button
+                    onClick={onWrite}
+                    className="w-full bg-CropLink-primary/10 text-CropLink-primary font-black text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                >
+                    Write a Review
+                </button>
+            )}
         </div>
     );
 }
