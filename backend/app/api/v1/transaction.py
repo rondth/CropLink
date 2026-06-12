@@ -31,10 +31,14 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         existing_payment = supabase.table("payments") \
             .select("stripe_id") \
             .eq("transaction_id", existing_txn_id) \
-            .single().execute()
-        
-        intent = stripe.PaymentIntent.retrieve(existing_payment.data["stripe_id"])
-        return {"client_secret": intent.client_secret, "transaction_id": existing_txn_id}
+            .execute()
+        if existing_payment.data:
+            intent = stripe.PaymentIntent.retrieve(existing_payment.data[0]["stripe_id"])
+            reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
+            if intent.status in reusable:
+                return {"client_secret": intent.client_secret, "transaction_id": existing_txn_id}
+        supabase.table("payments").delete().eq("transaction_id", existing_txn_id).execute()
+        supabase.table("transaction").delete().eq("id", existing_txn_id).execute()
     
     listing = supabase.table("crops_listings").select("id, price, quantity, min_order_quantity, status, seller_id, currency").eq("id", payload.listing_id).single().execute()
 
