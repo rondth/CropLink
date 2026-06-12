@@ -27,7 +27,7 @@ export default function OrdersPage() {
         if (!authLoading && !isAuthenticated) return;
         const fetchData = async () => {
             try {
-                const ordersRes = await api.get('/transactions/');
+                const ordersRes = await api.get('/transactions');
                 setOrders(ordersRes.data.transactions ?? []);
                 api.get('/reviews/mine')
                     .then(r => setReviewedIds(new Set(r.data)))
