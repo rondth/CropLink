@@ -117,7 +117,7 @@ function CheckoutContent() {
 
     const listingId = searchParams.get('listing_id');
     const quantityParam = searchParams.get('quantity');
-    const quantity = quantityParam ? parseInt(quantityParam, 10) : 1;
+    const quantity = quantityParam ? parseFloat(quantityParam) : 1;
 
     const [product, setProduct] = useState<any>(null);
     const [clientSecret, setClientSecret] = useState('');
