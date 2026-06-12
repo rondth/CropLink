@@ -44,8 +44,9 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         raise HTTPException(status_code=400, detail="Listing is no longer active")
     if listing.data["seller_id"] == buyer_id:
         raise HTTPException(status_code=400, detail="You cannot buy your own listing")
-    if payload.quantity < listing.data["min_order_quantity"]:
-        raise HTTPException(status_code=400, detail=f"Minimum order quantity is {listing.data['min_order_quantity']}")
+    min_qty = listing.data.get("min_order_quantity")
+    if min_qty is not None and payload.quantity < min_qty:
+        raise HTTPException(status_code=400, detail=f"Minimum order quantity is {min_qty}")
     if payload.quantity > listing.data["quantity"]:
         raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
     
