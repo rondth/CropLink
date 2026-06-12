@@ -65,8 +65,8 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
     txn_id = txn.data[0]["id"]
 
     intent = stripe.PaymentIntent.create(
-        amount=int(amount * 100), # Stripe uses cents
-        currency=listing_currency,
+        amount=int(amount * 100),
+        currency=listing_currency.lower(),
         automatic_payment_methods={
             "enabled": True,
             "allow_redirects": "never"  # Card only, no redirects
