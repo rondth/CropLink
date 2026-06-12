@@ -54,7 +54,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
     if payload.quantity > listing.data["quantity"]:
         raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
     
-    listing_currency = listing.data["currency"]
+    listing_currency = listing.data.get("currency") or "USD"
     amount = listing.data["price"] * payload.quantity
 
     txn = supabase.table("transaction").insert({
@@ -153,8 +153,8 @@ async def get_transaction(txn_id: str, user_id: str = Depends(get_current_user_i
     if txn.data["buyer_id"] != user_id and txn.data["seller_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this transaction")
     
-    payment = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).single().execute()
-    return {**txn.data, "payment": payment.data}
+    payment_res = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).execute()
+    return {**txn.data, "payment": payment_res.data[0] if payment_res.data else None}
 
 @router.post("/transactions/{txn_id}/cancel")
 async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):

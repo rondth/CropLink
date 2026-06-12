@@ -27,12 +27,11 @@ export default function OrdersPage() {
         if (!authLoading && !isAuthenticated) return;
         const fetchData = async () => {
             try {
-                const [ordersRes, reviewedRes] = await Promise.all([
-                    api.get('/transactions/'),
-                    api.get('/reviews/mine'),
-                ]);
+                const ordersRes = await api.get('/transactions/');
                 setOrders(ordersRes.data.transactions ?? []);
-                setReviewedIds(new Set(reviewedRes.data));
+                api.get('/reviews/mine')
+                    .then(r => setReviewedIds(new Set(r.data)))
+                    .catch(() => {});
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
             } finally {
