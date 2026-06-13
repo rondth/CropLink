@@ -18,6 +18,8 @@ interface Transaction {
         photo_url?: string;
         location: string;
         category: string;
+        min_order_quantity?: number;
+        available_quantity?: number;
     };
     payment?: {
         amount: number;
@@ -56,11 +58,15 @@ export default function OrderDetailPage() {
         if (!authLoading && !isAuthenticated) return;
         if (!transactionId) return;
 
-        const fetchOrder = async () => {
+        const fetchOrder = async (retries = 5) => {
             try {
                 const response = await api.get(`/transactions/${transactionId}`);
                 setOrder(response.data);
                 setNewQuantity(response.data.quantity);
+
+                if (response.data.status === 'pending' && retries > 0) {
+                    setTimeout(() => fetchOrder(retries - 1), 1500);
+                }
             } catch (err: any) {
                 setError(err?.response?.data?.detail || 'Failed to load order.');
             } finally {
@@ -97,6 +103,11 @@ export default function OrderDetailPage() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handlePay = () => {
+        if (!order) return;
+        router.push(`/checkout/${order.id}`);
     };
 
     if (authLoading || isLoading) {
@@ -143,6 +154,11 @@ export default function OrderDetailPage() {
     const counterparty = role === 'buyer' ? order.seller : order.buyer;
     const counterpartyLabel = role === 'buyer' ? 'Farmer / Seller' : 'Distributor / Buyer';
 
+    const PLATFORM_FEE_RATE = 0.02; // 2%
+    const subtotal = order.quantity * (order.listing?.price ?? 0);
+    const platformFee = subtotal * PLATFORM_FEE_RATE;
+    const total = order.payment?.amount ?? (subtotal * (1 + PLATFORM_FEE_RATE));
+
     return (
         <div className="relative p-6 max-w-lg mx-auto">
             {/* Back button */}
@@ -170,7 +186,10 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Crop info card */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+            <div
+                onClick={() => router.push(`/?listing_id=${order.listing?.id}`)}
+                className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
                 <div className="flex items-center gap-3">
                     {order.listing?.photo_url ? (
                         <img
@@ -215,6 +234,18 @@ export default function OrderDetailPage() {
                         value={`${order.quantity} ${order.listing?.unit_of_measurement ?? 'units'}`}
                     />
                     <Row
+                        label="Min. Order Qty"
+                        value={order.listing?.min_order_quantity != null
+                            ? `${order.listing.min_order_quantity} ${order.listing?.unit_of_measurement ?? 'units'}`
+                            : '-'}
+                    />
+                    <Row
+                        label="Available Qty"
+                        value={order.listing?.available_quantity != null
+                            ? `${order.listing.available_quantity} ${order.listing?.unit_of_measurement ?? 'units'}`
+                            : '-'}
+                    />
+                    <Row
                         label="Price / unit"
                         value={`${order.currency} ${order.listing?.price?.toLocaleString('en-US', { minimumFractionDigits: 2 }) ?? '—'}`}
                     />
@@ -225,13 +256,17 @@ export default function OrderDetailPage() {
                 <div className="mt-3 pt-3 border-t border-gray-50 flex flex-col gap-2">
                     <Row
                         label="Subtotal"
-                        value={`${order.currency} ${(order.quantity * (order.listing?.price ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                        value={`${order.currency} ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                    />
+                    <Row
+                        label="Platform Fee (2%)"
+                        value={`${order.currency} ${platformFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                     />
                     <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-100">
                         <span className="text-sm font-black text-gray-800">Total</span>
                         <span className="text-sm font-black text-CropLink-primary">
                             {order.payment?.currency ?? order.currency}{' '}
-                            {order.payment?.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 }) ?? '—'}
+                            {total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </span>
                     </div>
                 </div>
@@ -250,9 +285,17 @@ export default function OrderDetailPage() {
                 </div>
             )}
 
-            {/* Cancel order (buyer only, pending orders) */}
+            {/* Edit & cancel order (buyer only, pending orders) */}
             {role === 'buyer' && order.status === 'pending' && (
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 flex flex-col gap-2">
+                    {!isEditing && (
+                        <button
+                            onClick={handlePay}
+                            className="w-full bg-CropLink-primary text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 active:scale-95 transition-transform"
+                        >
+                            Pay Now
+                        </button>
+                    )}
                     {isEditing ? (
                         <>
                             {/* Quantity stepper */}

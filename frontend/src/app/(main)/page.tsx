@@ -6,6 +6,7 @@ import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
+import { useSearchParams } from 'next/navigation';
 
 interface Product {
     id: string;
@@ -21,6 +22,7 @@ export default function Home() {
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 6;
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const fetchListings = async () => {
@@ -33,6 +35,15 @@ export default function Home() {
         };
         fetchListings();
     }, []);
+
+    useEffect(() => {
+        const listingId = searchParams.get('listing_id');
+        if (!listingId) return;
+
+        api.get(`/listings/${listingId}`)
+            .then(res => setSelectedProduct(res.data))
+            .catch(err => console.error('Failed to load listing from URL:', err));
+    }, [searchParams]);
 
     const filteredProducts = products.filter(product => {
         const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;

@@ -40,7 +40,7 @@ function SuccessContent() {
     return (
         <div className="p-5 flex flex-col items-center justify-center gap-4">
             {/* Success icon */}
-            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mt-4">
+            <div className="w-16 h-16 flex items-center justify-center mt-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                 </svg>

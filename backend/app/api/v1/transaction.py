@@ -44,6 +44,16 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         supabase.table("payments").delete().eq("transaction_id", existing_txn_id).execute()
         supabase.table("transaction").delete().eq("id", existing_txn_id).execute()
     
+    completed = supabase.table("transaction") \
+        .select("id") \
+        .eq("listing_id", payload.listing_id) \
+        .eq("buyer_id", buyer_id) \
+        .eq("status", "completed") \
+        .execute()
+
+    if completed.data:
+        raise HTTPException(status_code=400, detail="You have already completed a purchase for this listing")
+        
     listing = supabase.table("crops_listings").select("id, price, quantity, min_order_quantity, status, seller_id, currency").eq("id", payload.listing_id).single().execute()
 
     if not listing.data:
@@ -110,7 +120,7 @@ async def stripe_webhook(request: Request):
     
     if event["type"] == "payment_intent.succeeded":
         metadata = event["data"]["object"]["metadata"]
-        txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
+        txn_id = metadata.get("transaction_id")
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
@@ -125,9 +135,15 @@ async def stripe_webhook(request: Request):
             }).execute()
         except Exception as e:
             print(f"Failed to reduce listing quantity for txn {txn_id}: {e}")
-    elif event["type"] in ("payment_intent.payment_failed", "payment_intent.cancelled"):
+    elif event["type"] == "payment_intent.payment_failed":
         metadata = event["data"]["object"]["metadata"]
-        txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
+        txn_id = metadata.get("transaction_id")
+        if not txn_id:
+            return {"status": "ignored"}
+        supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
+    elif event["type"] == "payment_intent.cancelled":
+        metadata = event["data"]["object"]["metadata"]
+        txn_id = metadata.get("transaction_id")
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
@@ -181,6 +197,23 @@ async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_use
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
     return {"status": "cancelled"}
+
+@router.get("/transactions/{txn_id}/client-secret")
+async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["buyer_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if txn.data["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Transaction is not pending")
+    
+    payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
+    if not payment.data:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    
+    intent = stripe.PaymentIntent.retrieve(payment.data["stripe_id"])
+    return {"client_secret": intent.client_secret}
 
 @router.patch("/transactions/{txn_id}")
 async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: str = Depends(get_current_user_id)):
