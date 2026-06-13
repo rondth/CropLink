@@ -72,14 +72,33 @@ function SuccessContent() {
                             <span>Quantity</span>
                             <span className="font-bold text-gray-700">{transaction.quantity}</span>
                         </div>
-                        {transaction.payment && (
-                            <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
-                                <span className="font-black text-gray-800">Total Paid</span>
-                                <span className="font-black text-CropLink-primary">
-                                    {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(transaction.payment.amount / 100)}
-                                </span>
-                            </div>
-                        )}
+                        {transaction.payment && (() => {
+                            const total = transaction.payment.amount;
+                            const subtotal = Math.round((total / 1.02) * 100) / 100;
+                            const platformFee = Math.round((total - subtotal) * 100) / 100;
+                            return (
+                                <>
+                                    <div className="flex justify-between">
+                                        <span>Subtotal</span>
+                                        <span className="font-bold text-gray-700">
+                                            {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(subtotal)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Platform fee (2%)</span>
+                                        <span className="font-bold text-gray-700">
+                                            {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(platformFee)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
+                                        <span className="font-black text-gray-800">Total Paid</span>
+                                        <span className="font-black text-CropLink-primary">
+                                            {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(total)}
+                                        </span>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             )}

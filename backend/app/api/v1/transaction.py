@@ -9,6 +9,7 @@ from typing import Literal
 load_dotenv()
 
 router = APIRouter()
+PLATFORM_FEE_RATE = 0.02 # 2%
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
@@ -53,9 +54,11 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         raise HTTPException(status_code=400, detail=f"Minimum order quantity is {min_qty}")
     if payload.quantity > listing.data["quantity"]:
         raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
-    
+
     listing_currency = listing.data.get("currency") or "USD"
-    amount = listing.data["price"] * payload.quantity
+    subtotal = listing.data["price"] * payload.quantity
+    platform_fee = round(subtotal * PLATFORM_FEE_RATE, 2)
+    total = round(subtotal + platform_fee, 2)
 
     txn = supabase.table("transaction").insert({
         "listing_id": payload.listing_id,
@@ -69,11 +72,11 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
     txn_id = txn.data[0]["id"]
 
     intent = stripe.PaymentIntent.create(
-        amount=int(amount * 100),
+        amount=int(total * 100),  # in cents
         currency=listing_currency.lower(),
         automatic_payment_methods={
             "enabled": True,
-            "allow_redirects": "never"  # Card only, no redirects
+            "allow_redirects": "never"  # card only, no redirects
         },
         metadata={"transaction_id": str(txn_id)}
     )
@@ -81,7 +84,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
     supabase.table("payments").insert({
         "transaction_id": txn_id,
         "stripe_id": intent.id,
-        "amount": amount,
+        "amount": total,
         "currency": listing_currency.upper(),
         "status": "pending"
     }).execute()

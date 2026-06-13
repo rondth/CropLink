@@ -102,7 +102,7 @@ function CheckoutForm({
             </button>
 
             <p className="text-[10px] text-gray-400 text-center">
-                🔒 Secured by Stripe. Your payment info is never stored on our servers.
+                Secured by Stripe. Your payment info is never stored on our servers.
             </p>
         </form>
     );
