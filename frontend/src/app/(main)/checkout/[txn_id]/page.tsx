@@ -2,24 +2,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-const CARD_ELEMENT_OPTIONS = {
-    style: {
-        base: {
-            fontSize: '14px',
-            fontFamily: 'inherit',
-            color: '#1f2937',
-            fontWeight: '600',
-            '::placeholder': { color: '#9ca3af', fontWeight: '400' },
-        },
-        invalid: { color: '#ef4444' },
-    },
-};
 
 interface Transaction {
     id: string;
@@ -71,19 +58,13 @@ function CheckoutForm({
         setCardError(null);
         setIsPaying(true);
 
-        const cardNumber = elements.getElement(CardNumberElement);
-        if (!cardNumber) {
-            setCardError('Card details not ready. Please try again.');
-            setIsPaying(false);
-            return;
-        }
-
-        const { error } = await stripe.confirmCardPayment(clientSecret, {
-            payment_method: { card: cardNumber },
+        const { error } = await stripe.confirmPayment({
+            elements,
+            redirect: 'if_required',
         });
 
         if (error) {
-            setCardError(error.message ?? 'Payment failed. Please check your card details.');
+            setCardError(error.message ?? 'Payment failed.');
             setIsPaying(false);
         } else {
             let attempts = 0;
@@ -97,13 +78,6 @@ function CheckoutForm({
             }, 1000);
         }
     };
-
-    const fieldClass = (name: string) =>
-        `w-full px-4 py-3.5 rounded-xl border text-sm font-semibold transition-all ${
-            focusedField === name
-                ? 'border-CropLink-primary ring-2 ring-CropLink-primary/10'
-                : 'border-gray-200'
-        }`;
 
     return (
         <div className="flex flex-col gap-3">
@@ -148,64 +122,11 @@ function CheckoutForm({
                 </div>
             </div>
 
-            {/* Card fields */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">
-                    Card Details
+                    Payment Details
                 </p>
-
-                <div className="flex flex-col gap-2.5">
-                    {/* Card number */}
-                    <div>
-                        <label className="text-[11px] text-gray-400 font-bold mb-1.5 block">
-                            Card number
-                        </label>
-                        <div className={fieldClass('number')}>
-                            <CardNumberElement
-                                options={CARD_ELEMENT_OPTIONS}
-                                onFocus={() => setFocusedField('number')}
-                                onBlur={() => setFocusedField(null)}
-                                onChange={() => setCardError(null)}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Expiry + CVC */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="text-[11px] text-gray-400 font-bold mb-1.5 block">
-                                Expiry
-                            </label>
-                            <div className={fieldClass('expiry')}>
-                                <CardExpiryElement
-                                    options={CARD_ELEMENT_OPTIONS}
-                                    onFocus={() => setFocusedField('expiry')}
-                                    onBlur={() => setFocusedField(null)}
-                                    onChange={() => setCardError(null)}
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-[11px] text-gray-400 font-bold mb-1.5 block">CVC</label>
-                            <div className={fieldClass('cvc')}>
-                                <CardCvcElement
-                                    options={CARD_ELEMENT_OPTIONS}
-                                    onFocus={() => setFocusedField('cvc')}
-                                    onBlur={() => setFocusedField(null)}
-                                    onChange={() => setCardError(null)}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Card error */}
-                {cardError && (
-                    <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
-                        <span className="text-red-400 mt-0.5 flex-shrink-0">⚠</span>
-                        <p className="text-[11px] font-bold text-red-500">{cardError}</p>
-                    </div>
-                )}
+                <PaymentElement />
             </div>
 
             {/* Pay button */}
