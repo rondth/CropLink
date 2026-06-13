@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { api } from '@/lib/api';
 
 export default function ProductDetails({ product, onBack }: { product: any, onBack: () => void }) {
     const router = useRouter();
@@ -13,16 +14,34 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
     const maxQty = product.quantity ?? 0;
     
     const [quantity, setQuantity] = useState(minOrder);
+    const [isOrdering, setIsOrdering] = useState(false);
+    const [orderError, setOrderError] = useState<string | null>(null);
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
 
-    const handleOrder = () => {
+    const handleOrder = async () => {
         if (!isAuthenticated) {
             router.push('/login');
             return;
         }
-        router.push(`/checkout?listing_id=${product.id}&quantity=${quantity}`);
+
+        setIsOrdering(true);
+        setOrderError(null);
+        try {
+            const res = await api.post('/transactions', {
+                listing_id: product.id,
+                quantity: quantity,
+            });
+            console.log('Transaction response:', res.data);
+            const { transaction_id } = res.data;
+            console.log('Redirecting to:', `/checkout/${transaction_id}`);
+            router.push(`/checkout/${transaction_id}`);
+        } catch (err: any) {
+            setOrderError(err?.response?.data?.detail || 'Failed to place order. Please try again.');
+        } finally {
+            setIsOrdering(false);
+        }
     };
 
     const harvestedDate = product.harvested_at 
@@ -89,12 +108,18 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
                 </div>
                 <button 
                     onClick={handleOrder} 
-                    disabled={quantity < minOrder || quantity > maxQty || maxQty === 0} 
+                    disabled={quantity < minOrder || quantity > maxQty || maxQty === 0 || isOrdering} 
                     className="bg-CropLink-primary text-white font-black text-sm py-3 px-6 rounded-xl shadow-md shadow-CropLink-primary/30 active:scale-95 transition-all flex-1 ml-4 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 >
-                    Order Now
+                    {isOrdering ? 'Placing order...' : 'Order Now'}
                 </button>
             </div>
+
+            {orderError && (
+                <div className="mx-4 mt-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                    <p className="text-[11px] font-bold text-red-500">{orderError}</p>
+                </div>
+            )}
         </div>
     );
 }

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
 from typing import Literal
+import stripe
 
 load_dotenv()
 
@@ -43,16 +44,6 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
                 return {"client_secret": intent.client_secret, "transaction_id": existing_txn_id}
         supabase.table("payments").delete().eq("transaction_id", existing_txn_id).execute()
         supabase.table("transaction").delete().eq("id", existing_txn_id).execute()
-    
-    completed = supabase.table("transaction") \
-        .select("id") \
-        .eq("listing_id", payload.listing_id) \
-        .eq("buyer_id", buyer_id) \
-        .eq("status", "completed") \
-        .execute()
-
-    if completed.data:
-        raise HTTPException(status_code=400, detail="You have already completed a purchase for this listing")
         
     listing = supabase.table("crops_listings").select("id, price, quantity, min_order_quantity, status, seller_id, currency").eq("id", payload.listing_id).single().execute()
 
@@ -84,15 +75,21 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
 
     txn_id = txn.data[0]["id"]
 
-    intent = stripe.PaymentIntent.create(
-        amount=int(total * 100),  # in cents
-        currency=listing_currency.lower(),
-        automatic_payment_methods={
-            "enabled": True,
-            "allow_redirects": "never"  # card only, no redirects
-        },
-        metadata={"transaction_id": str(txn_id)}
-    )
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=int(total * 100),  # in cents
+            currency=listing_currency.lower(),
+            automatic_payment_methods={
+                "enabled": True,
+                "allow_redirects": "never"  # card only, no redirects
+            },
+            metadata={"transaction_id": str(txn_id)}
+        )
+    except stripe.error.InvalidRequestError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment failed: {str(e.user_message or e)}"
+        )
 
     supabase.table("payments").insert({
         "transaction_id": txn_id,
