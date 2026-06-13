@@ -18,6 +18,9 @@ class TransactionCreate(BaseModel):
     listing_id: str
     quantity: float
 
+class TransactionUpdate(BaseModel):
+    quantity: float
+
 @router.post("/transactions")
 async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends(get_current_user_id)):
     existing = supabase.table("transaction") \
@@ -178,3 +181,45 @@ async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_use
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
     return {"status": "cancelled"}
+
+@router.patch("/transactions/{txn_id}")
+async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["buyer_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the buyer can edit this transaction")
+    if txn.data["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Cannot edit a transaction with status '{txn.data['status']}'")
+
+    listing = supabase.table("crops_listings") \
+        .select("price, quantity, min_order_quantity") \
+        .eq("id", txn.data["listing_id"]).single().execute()
+
+    if not listing.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    min_qty = listing.data.get("min_order_quantity")
+    if min_qty is not None and payload.quantity < min_qty:
+        raise HTTPException(status_code=400, detail=f"Minimum order quantity is {min_qty}")
+    if payload.quantity > listing.data["quantity"]:
+        raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
+
+    subtotal = listing.data["price"] * payload.quantity
+    platform_fee = round(subtotal * PLATFORM_FEE_RATE, 2)
+    new_total = round(subtotal + platform_fee, 2)
+
+    payment_res = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).execute()
+    if payment_res.data:
+        try:
+            stripe.PaymentIntent.modify(
+                payment_res.data[0]["stripe_id"],
+                amount=int(new_total * 100)
+            )
+            supabase.table("payments").update({"amount": new_total}).eq("transaction_id", txn_id).execute()
+        except stripe.error.InvalidRequestError as e:
+            raise HTTPException(status_code=400, detail=f"Could not update payment: {str(e)}")
+
+    supabase.table("transaction").update({"quantity": payload.quantity}).eq("id", txn_id).execute()
+    updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).single().execute()
+    return updated.data

@@ -45,6 +45,10 @@ export default function OrderDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updating, setUpdating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [newQuantity, setNewQuantity] = useState(0);
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const role = (user as any)?.user_metadata?.role ?? (user as any)?.role;
 
@@ -56,6 +60,7 @@ export default function OrderDetailPage() {
             try {
                 const response = await api.get(`/transactions/${transactionId}`);
                 setOrder(response.data);
+                setNewQuantity(response.data.quantity);
             } catch (err: any) {
                 setError(err?.response?.data?.detail || 'Failed to load order.');
             } finally {
@@ -74,9 +79,23 @@ export default function OrderDetailPage() {
             setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
         } catch (err: any) {
             console.log(err?.response);
-            alert(err?.response?.data?.detail || 'Failed to cancel order.');
+            setErrorMessage(err?.response?.data?.detail || 'Failed to cancel order.');
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!order) return;
+        setIsSaving(true);
+        try {
+            const res = await api.patch(`/transactions/${order.id}`, { quantity: newQuantity });
+            setOrder(prev => prev ? { ...prev, quantity: res.data.quantity } : prev);
+            setIsEditing(false);
+        } catch (err: any) {
+            setErrorMessage(err?.response?.data?.detail || 'Failed to update order.');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -125,7 +144,7 @@ export default function OrderDetailPage() {
     const counterpartyLabel = role === 'buyer' ? 'Farmer / Seller' : 'Distributor / Buyer';
 
     return (
-        <div className="p-6 max-w-lg mx-auto">
+        <div className="relative p-6 max-w-lg mx-auto">
             {/* Back button */}
             <button
                 onClick={() => router.push('/orders')}
@@ -233,19 +252,80 @@ export default function OrderDetailPage() {
 
             {/* Cancel order (buyer only, pending orders) */}
             {role === 'buyer' && order.status === 'pending' && (
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                    <button
-                        onClick={handleCancel}
-                        disabled={updating}
-                        className="w-full bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
-                    >
-                        Cancel Order
-                    </button>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 flex flex-col gap-2">
+                    {isEditing ? (
+                        <>
+                            {/* Quantity stepper */}
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-bold text-gray-700">New Quantity</span>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setNewQuantity(q => Math.max(1, q - 1))}
+                                        className="w-8 h-8 rounded-lg bg-gray-100 font-bold text-gray-700 flex items-center justify-center active:scale-95 transition-all"
+                                    >−</button>
+                                    <input
+                                        type="number"
+                                        value={newQuantity}
+                                        onChange={(e) => setNewQuantity(Math.max(1, Number(e.target.value)))}
+                                        className="font-black text-gray-800 text-sm w-20 text-center outline-none"
+                                    />
+                                    <button
+                                        onClick={() => setNewQuantity(q => q + 1)}
+                                        className="w-8 h-8 rounded-lg bg-gray-100 font-bold text-gray-700 flex items-center justify-center active:scale-95 transition-all"
+                                    >+</button>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="w-full bg-CropLink-primary text-white font-black text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 disabled:opacity-50 active:scale-95 transition-transform"
+                            >
+                                {isSaving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button
+                                onClick={() => { setIsEditing(false); setNewQuantity(order.quantity); }}
+                                className="w-full border border-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                            >
+                                Cancel Edit
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="w-full bg-CropLink-primary text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 active:scale-95 transition-transform"
+                            >
+                                Edit Order
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={updating}
+                                className="w-full bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
+                            >
+                                Cancel Order
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
 
             {order.status === 'completed' && role === 'buyer' && (
                 <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review`)} />
+            )}
+
+            { /* Error message */ }
+            {errorMessage && (
+                <div className="absolute fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+                    <div className="bg-white rounded-2xl p-6 mx-6 shadow-xl max-w-sm w-full">
+                    <p className="text-gray-700 text-sm mb-6">{errorMessage}</p>
+                    <button
+                        onClick={() => setErrorMessage(null)}
+                        className="w-full bg-[#4A7C59] text-white py-2 rounded-lg font-medium"
+                    >
+                        Close
+                    </button>
+                    </div>
+                </div>
             )}
         </div>
     );
