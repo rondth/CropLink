@@ -19,7 +19,7 @@ interface Transaction {
         location: string;
         category: string;
         min_order_quantity?: number;
-        available_quantity?: number;
+        quantity?: number;
     };
     payment?: {
         amount: number;
@@ -241,8 +241,8 @@ export default function OrderDetailPage() {
                     />
                     <Row
                         label="Available Qty"
-                        value={order.listing?.available_quantity != null
-                            ? `${order.listing.available_quantity} ${order.listing?.unit_of_measurement ?? 'units'}`
+                        value={order.listing?.quantity != null
+                            ? `${order.listing.quantity} ${order.listing?.unit_of_measurement ?? 'units'}`
                             : '-'}
                     />
                     <Row
