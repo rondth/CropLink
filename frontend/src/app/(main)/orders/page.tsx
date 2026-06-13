@@ -10,6 +10,8 @@ const STATUS_STYLES: Record<string, string> = {
     cancelled: 'bg-red-50 text-red-500',
 };
 
+const PLATFORM_FEE_RATE = 0.02 // 2%
+
 const FILTERS = ['all', 'pending', 'completed', 'cancelled'] as const;
 type Filter = typeof FILTERS[number];
 
@@ -139,7 +141,9 @@ export default function OrdersPage() {
                                         </div>
                                         <div className="text-sm font-black text-CropLink-primary">
                                             {order.currency || order.listing?.currency || '$'}{' '}
-                                            {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(order.total ?? order.quantity * (order.listing?.price || 0))}
+                                            {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(
+                                                (order.total ?? order.quantity * (order.listing?.price || 0)) * (1 + PLATFORM_FEE_RATE)
+                                            )}
                                         </div>
                                     </div>
                                 </button>
