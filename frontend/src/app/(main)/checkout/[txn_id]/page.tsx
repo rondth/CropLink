@@ -156,8 +156,8 @@ function CheckoutForm({
 function SuccessScreen({ transactionId, onViewOrder }: { transactionId: string; onViewOrder: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
-            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-3xl">
-                ✅
+            <div className="w-16 h-16 bg-green-50 rounded-full text-green-600 flex items-center justify-center text-3xl">
+                ✓
             </div>
             <div>
                 <h2 className="text-xl font-black text-gray-800">Payment successful</h2>
@@ -201,6 +201,10 @@ export default function CheckoutPage() {
             const payRes = await api.get(`/transactions/${transactionId}/client-secret`);
             setClientSecret(payRes.data.client_secret);
         } catch (err: any) {
+            if (err?.response?.data?.detail === 'already_paid') {
+                setPaid(true);
+                return;
+            }
             setError(err?.response?.data?.detail || 'Could not load checkout. Please go back and try again.');
         } finally {
             setIsLoading(false);

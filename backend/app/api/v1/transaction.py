@@ -205,6 +205,10 @@ async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Payment not found")
 
     intent = stripe.PaymentIntent.retrieve(payment.data[0]["stripe_id"])
+    if intent.status == "succeeded":
+        supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
+        supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+        raise HTTPException(status_code=400, detail="already_paid")
     reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
     if intent.status not in reusable:
         listing = supabase.table("crops_listings").select("price, currency").eq("id", txn.data["listing_id"]).single().execute()
