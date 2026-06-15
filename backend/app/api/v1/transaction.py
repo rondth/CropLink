@@ -113,30 +113,28 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
     if event["type"] == "payment_intent.succeeded":
-        metadata = event["data"]["object"]["metadata"].to_dict()
-        txn_id = metadata.get("transaction_id")
+        txn_id = event["data"]["object"]["metadata"].get("transaction_id")
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
 
-        txn = supabase.table("transaction").select("listing_id, quantity").eq("id", txn_id).single().execute()
-        try:
-            supabase.rpc("reduce_listing_quantity", {
-                "p_listing_id": txn.data["listing_id"],
-                "p_quantity": txn.data["quantity"]
-            }).execute()
-        except Exception as e:
-            print(f"Failed to reduce listing quantity for txn {txn_id}: {e}")
+        txn = supabase.table("transaction").select("listing_id, quantity").eq("id", txn_id).execute()
+        if txn.data:
+            try:
+                supabase.rpc("reduce_listing_quantity", {
+                    "p_listing_id": txn.data[0]["listing_id"],
+                    "p_quantity": txn.data[0]["quantity"]
+                }).execute()
+            except Exception as e:
+                print(f"Failed to reduce listing quantity for txn {txn_id}: {e}")
     elif event["type"] == "payment_intent.payment_failed":
-        metadata = event["data"]["object"]["metadata"].to_dict()
-        txn_id = metadata.get("transaction_id")
+        txn_id = event["data"]["object"]["metadata"].get("transaction_id")
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     elif event["type"] == "payment_intent.cancelled":
-        metadata = event["data"]["object"]["metadata"].to_dict()
-        txn_id = metadata.get("transaction_id")
+        txn_id = event["data"]["object"]["metadata"].get("transaction_id")
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
