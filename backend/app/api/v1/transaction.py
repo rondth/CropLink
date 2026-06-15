@@ -162,9 +162,10 @@ async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Li
 
 @router.get("/transactions/{txn_id}")
 async def get_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
-    txn = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).single().execute()
+    txn = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()
     if not txn.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
+    txn.data = txn.data[0]
     if txn.data["buyer_id"] != user_id and txn.data["seller_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this transaction")
     
@@ -261,5 +262,5 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
             raise HTTPException(status_code=400, detail=f"Could not update payment: {str(e)}")
 
     supabase.table("transaction").update({"quantity": payload.quantity}).eq("id", txn_id).execute()
-    updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).single().execute()
-    return updated.data
+    updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()
+    return updated.data[0]
