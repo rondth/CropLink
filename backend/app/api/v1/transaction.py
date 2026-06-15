@@ -113,7 +113,8 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature")
     
     if event["type"] == "payment_intent.succeeded":
-        txn_id = event["data"]["object"]["metadata"].get("transaction_id")
+        metadata = event["data"]["object"]["metadata"]
+        txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
@@ -129,12 +130,14 @@ async def stripe_webhook(request: Request):
             except Exception as e:
                 print(f"Failed to reduce listing quantity for txn {txn_id}: {e}")
     elif event["type"] == "payment_intent.payment_failed":
-        txn_id = event["data"]["object"]["metadata"].get("transaction_id")
+        metadata = event["data"]["object"]["metadata"]
+        txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     elif event["type"] == "payment_intent.cancelled":
-        txn_id = event["data"]["object"]["metadata"].get("transaction_id")
+        metadata = event["data"]["object"]["metadata"]
+        txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
@@ -254,14 +257,20 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
 
     payment_res = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).execute()
     if payment_res.data:
-        try:
-            stripe.PaymentIntent.modify(
-                payment_res.data[0]["stripe_id"],
-                amount=int(new_total * 100)
-            )
-            supabase.table("payments").update({"amount": new_total}).eq("transaction_id", txn_id).execute()
-        except stripe.error.InvalidRequestError as e:
-            raise HTTPException(status_code=400, detail=f"Could not update payment: {str(e)}")
+        intent = stripe.PaymentIntent.retrieve(payment_res.data[0]["stripe_id"])
+        if intent.status == "succeeded":
+            supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
+            supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+            raise HTTPException(status_code=400, detail="already_paid")
+        
+        reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
+
+        if intent.status in reusable:
+            try:
+                stripe.PaymentIntent.modify(intent.id, amount=int(new_total * 100))
+                supabase.table("payments").update({"amount": new_total}).eq("transaction_id", txn_id).execute()
+            except stripe.error.InvalidRequestError as e:
+                raise HTTPException(status_code=400, detail=f"Could not update payment: {str(e)}")
 
     supabase.table("transaction").update({"quantity": payload.quantity}).eq("id", txn_id).execute()
     updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()

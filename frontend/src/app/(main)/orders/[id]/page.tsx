@@ -99,6 +99,11 @@ export default function OrderDetailPage() {
             setOrder(prev => prev ? { ...prev, quantity: res.data.quantity } : prev);
             setIsEditing(false);
         } catch (err: any) {
+            if (err?.response?.data?.detail === 'already_paid') {
+                setOrder(prev => prev ? { ...prev, status: 'completed' } : prev);
+                setIsEditing(false);
+                return;
+            }
             setErrorMessage(err?.response?.data?.detail || 'Failed to update order.');
         } finally {
             setIsSaving(false);
