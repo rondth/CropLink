@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
@@ -14,7 +14,7 @@ interface Product {
     [key: string]: any;
 }
 
-export default function Home() {
+function HomeContent() {
     const { role } = useRole();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState<Product[]>([]);
@@ -28,7 +28,7 @@ export default function Home() {
         const fetchListings = async () => {
             try {
                 const response = await api.get('/listings/');
-                setProducts(response.data); 
+                setProducts(response.data);
             } catch (error) {
                 console.error("Failed to fetch listings:", error);
             }
@@ -109,5 +109,13 @@ export default function Home() {
                 <Dashboard />
             )}
         </>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense>
+            <HomeContent />
+        </Suspense>
     );
 }
