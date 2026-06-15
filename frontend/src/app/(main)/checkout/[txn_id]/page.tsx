@@ -35,22 +35,39 @@ function CheckoutForm({
     clientSecret,
     onSuccess,
     onTimeout,
+    onTransactionUpdate,
 }: {
     transaction: Transaction;
     clientSecret: string;
     onSuccess: () => void;
     onTimeout: () => void;
+    onTransactionUpdate: (txn: Transaction) => void;
 }) {
     const stripe = useStripe();
     const elements = useElements();
     const [isPaying, setIsPaying] = useState(false);
     const [isReady, setIsReady] = useState(false);
     const [cardError, setCardError] = useState<string | null>(null);
-    const [focusedField, setFocusedField] = useState<string | null>(null);
+    const [isUpdatingQty, setIsUpdatingQty] = useState(false);
+    const [qtyError, setQtyError] = useState<string | null>(null);
 
     const subtotal = transaction.quantity * (transaction.listing?.price ?? 0);
     const platformFee = Math.round(subtotal * 0.02 * 100) / 100;
-    const total = transaction.payment?.amount ?? subtotal + platformFee;
+    const total = subtotal + platformFee;
+
+    const handleQtyChange = async (newQty: number) => {
+        if (newQty === transaction.quantity || isNaN(newQty) || newQty <= 0) return;
+        setIsUpdatingQty(true);
+        setQtyError(null);
+        try {
+            const res = await api.patch(`/transactions/${transaction.id}`, { quantity: newQty });
+            onTransactionUpdate(res.data);
+        } catch (err: any) {
+            setQtyError(err?.response?.data?.detail || 'Failed to update quantity.');
+        } finally {
+            setIsUpdatingQty(false);
+        }
+    };
     const currency = transaction.payment?.currency ?? transaction.currency ?? 'USD';
 
     const fmt = (n: number) =>
@@ -126,10 +143,25 @@ function CheckoutForm({
 
                 {/* Price rows */}
                 <div className="flex flex-col gap-2 pt-3 border-t border-gray-50">
-                    <SummaryRow
-                        label={`${fmt(transaction.quantity)} ${transaction.listing?.unit_of_measurement ?? 'units'} × ${currency} ${fmt(transaction.listing?.price ?? 0)}`}
-                        value={`${currency} ${fmt(subtotal)}`}
-                    />
+                    <div className="flex justify-between items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleQtyChange(transaction.quantity - 1)}
+                                disabled={isUpdatingQty}
+                                className="w-6 h-6 rounded-md bg-gray-100 text-gray-600 font-bold text-sm flex items-center justify-center disabled:opacity-40"
+                            >−</button>
+                            <span className="text-[11px] font-bold text-gray-700 min-w-[2rem] text-center">
+                                {isUpdatingQty ? '…' : `${fmt(transaction.quantity)} ${transaction.listing?.unit_of_measurement ?? 'units'}`}
+                            </span>
+                            <button
+                                onClick={() => handleQtyChange(transaction.quantity + 1)}
+                                disabled={isUpdatingQty}
+                                className="w-6 h-6 rounded-md bg-gray-100 text-gray-600 font-bold text-sm flex items-center justify-center disabled:opacity-40"
+                            >+</button>
+                        </div>
+                        <span className="text-[11px] font-bold text-gray-700">{currency} {fmt(subtotal)}</span>
+                    </div>
+                    {qtyError && <p className="text-[10px] text-red-500">{qtyError}</p>}
                     <SummaryRow label="Platform fee (2%)" value={`${currency} ${fmt(platformFee)}`} muted />
                     <div className="flex justify-between items-center pt-2 mt-1 border-t border-gray-100">
                         <span className="text-sm font-black text-gray-800">Total</span>
@@ -308,6 +340,7 @@ export default function CheckoutPage() {
                     clientSecret={clientSecret}
                     onSuccess={() => setPaid(true)}
                     onTimeout={() => router.push(`/orders/${transactionId}?status=timeout`)}
+                    onTransactionUpdate={setTransaction}
                 />
             </Elements>
         </div>

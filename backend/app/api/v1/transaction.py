@@ -79,10 +79,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         intent = stripe.PaymentIntent.create(
             amount=int(total * 100),  # in cents
             currency=listing_currency.lower(),
-            automatic_payment_methods={
-                "enabled": True,
-                "allow_redirects": "never"  # card only, no redirects
-            },
+            payment_method_types=["card"],
             metadata={"transaction_id": str(txn_id)}
         )
     except stripe.error.InvalidRequestError as e:
@@ -204,11 +201,25 @@ async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user
     if txn.data["status"] != "pending":
         raise HTTPException(status_code=400, detail="Transaction is not pending")
     
-    payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
+    payment = supabase.table("payments").select("stripe_id, amount, currency").eq("transaction_id", txn_id).execute()
     if not payment.data:
         raise HTTPException(status_code=404, detail="Payment not found")
-    
-    intent = stripe.PaymentIntent.retrieve(payment.data["stripe_id"])
+
+    intent = stripe.PaymentIntent.retrieve(payment.data[0]["stripe_id"])
+    reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
+    if intent.status not in reusable:
+        listing = supabase.table("crops_listings").select("price, currency").eq("id", txn.data["listing_id"]).single().execute()
+        listing_currency = (listing.data.get("currency") or "USD").lower()
+        subtotal = listing.data["price"] * txn.data["quantity"]
+        new_total = round(subtotal * (1 + PLATFORM_FEE_RATE), 2)
+        intent = stripe.PaymentIntent.create(
+            amount=int(new_total * 100),
+            currency=listing_currency,
+            payment_method_types=["card"],
+            metadata={"transaction_id": str(txn_id)}
+        )
+        supabase.table("payments").update({"stripe_id": intent.id, "amount": new_total}).eq("transaction_id", txn_id).execute()
+
     return {"client_secret": intent.client_secret}
 
 @router.patch("/transactions/{txn_id}")
