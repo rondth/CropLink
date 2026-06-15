@@ -157,7 +157,7 @@ export default function OrderDetailPage() {
     const PLATFORM_FEE_RATE = 0.02; // 2%
     const subtotal = order.quantity * (order.listing?.price ?? 0);
     const platformFee = subtotal * PLATFORM_FEE_RATE;
-    const total = order.payment?.amount ?? (subtotal * (1 + PLATFORM_FEE_RATE));
+    const total = subtotal + platformFee;
 
     return (
         <div className="relative p-6 max-w-lg mx-auto">
