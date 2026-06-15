@@ -34,14 +34,17 @@ function CheckoutForm({
     transaction,
     clientSecret,
     onSuccess,
+    onTimeout,
 }: {
     transaction: Transaction;
     clientSecret: string;
     onSuccess: () => void;
+    onTimeout: () => void;
 }) {
     const stripe = useStripe();
     const elements = useElements();
     const [isPaying, setIsPaying] = useState(false);
+    const [isReady, setIsReady] = useState(false);
     const [cardError, setCardError] = useState<string | null>(null);
     const [focusedField, setFocusedField] = useState<string | null>(null);
 
@@ -68,14 +71,27 @@ function CheckoutForm({
             setIsPaying(false);
         } else {
             let attempts = 0;
-            const poll = setInterval(async () => {
-                attempts++;
-                const res = await api.get(`/transactions/${transaction.id}`);
-                if (res.data.status === 'completed' || attempts >= 10) {
-                    clearInterval(poll);
-                    onSuccess();
+            const maxAttempts = 10;
+
+            const poll = async () => {
+                if (attempts >= maxAttempts) {
+                onTimeout();
+                return;
                 }
-            }, 1000);
+                attempts++;
+                try {
+                const res = await api.get(`/transactions/${transaction.id}`);
+                if (res.data.status === "completed") {
+                    onSuccess();
+                } else {
+                    setTimeout(poll, 2000 * attempts);
+                }
+                } catch {
+                setTimeout(poll, 2000 * attempts);
+                }
+            };
+
+            poll();
         }
     };
 
@@ -126,13 +142,17 @@ function CheckoutForm({
                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">
                     Payment Details
                 </p>
-                <PaymentElement />
+                <PaymentElement onReady={() => setIsReady(true)} />
             </div>
+
+            {cardError && (
+                <p className="text-red-500 text-xs text-center">{cardError}</p>
+            )}
 
             {/* Pay button */}
             <button
                 onClick={handlePay}
-                disabled={isPaying || !stripe}
+                disabled={isPaying || !stripe || !isReady}
                 className="w-full bg-CropLink-primary text-white font-black text-sm py-4 rounded-2xl shadow-md shadow-CropLink-primary/25 disabled:opacity-50 active:scale-95 transition-all"
             >
                 {isPaying ? (
@@ -287,6 +307,7 @@ export default function CheckoutPage() {
                     transaction={transaction}
                     clientSecret={clientSecret}
                     onSuccess={() => setPaid(true)}
+                    onTimeout={() => router.push(`/orders/${transactionId}?status=timeout`)}
                 />
             </Elements>
         </div>
