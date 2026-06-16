@@ -14,7 +14,7 @@ class ReviewCreate(BaseModel):
 
 
 @router.post("/seller")
-def create_review(data: ReviewCreate, reviewer_id: str = Depends(get_current_user_id)):
+def create_seller_review(data: ReviewCreate, reviewer_id: str = Depends(get_current_user_id)):
     txn = supabase.table("transaction").select("*").eq("id", data.transaction_id).single().execute()
     if not txn.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
