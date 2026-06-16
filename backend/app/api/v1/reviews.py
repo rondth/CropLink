@@ -15,12 +15,13 @@ class ReviewCreate(BaseModel):
 
 @router.post("/seller")
 def create_seller_review(data: ReviewCreate, reviewer_id: str = Depends(get_current_user_id)):
-    txn = supabase.table("transaction").select("*").eq("id", data.transaction_id).single().execute()
+    txn = supabase.table("transaction").select("*").eq("id", data.transaction_id).execute()
     if not txn.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    if txn.data["status"] != "completed":
+    txn_data = txn.data[0]
+    if txn_data["status"] != "completed":
         raise HTTPException(status_code=400, detail="Can only review completed transactions")
-    if txn.data["buyer_id"] != reviewer_id:
+    if txn_data["buyer_id"] != reviewer_id:
         raise HTTPException(status_code=403, detail="Only the buyer can leave a seller review")
 
     existing = supabase.table("user_reviews").select("id").eq("transaction_id", data.transaction_id).eq("reviewer_id", reviewer_id).execute()
@@ -29,7 +30,7 @@ def create_seller_review(data: ReviewCreate, reviewer_id: str = Depends(get_curr
 
     review = supabase.table("user_reviews").insert({
         "reviewer_id": reviewer_id,
-        "seller_id": txn.data["seller_id"],
+        "seller_id": txn_data["seller_id"],
         "transaction_id": data.transaction_id,
         "rating": data.rating,
         "content": data.content,
@@ -40,13 +41,14 @@ def create_seller_review(data: ReviewCreate, reviewer_id: str = Depends(get_curr
 
 @router.post("/buyer")
 def create_buyer_review(data: ReviewCreate, reviewer_id: str = Depends(get_current_user_id)):
-    txn = supabase.table("transaction").select("*").eq("id", data.transaction_id).single().execute()
+    txn = supabase.table("transaction").select("*").eq("id", data.transaction_id).execute()
 
     if not txn.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    if txn.data["status"] != "completed":
+    txn_data = txn.data[0]
+    if txn_data["status"] != "completed":
         raise HTTPException(status_code=400, detail="Can only review completed transactions")
-    if txn.data["seller_id"] != reviewer_id:
+    if txn_data["seller_id"] != reviewer_id:
         raise HTTPException(status_code=403, detail="Only the seller can leave a buyer review")
     
     existing = supabase.table("user_reviews").select("id").eq("transaction_id", data.transaction_id).eq("reviewer_id", reviewer_id).execute()
@@ -55,7 +57,7 @@ def create_buyer_review(data: ReviewCreate, reviewer_id: str = Depends(get_curre
 
     review = supabase.table("user_reviews").insert({
         "reviewer_id": reviewer_id,
-        "buyer_id": txn.data["buyer_id"],
+        "buyer_id": txn_data["buyer_id"],
         "transaction_id": data.transaction_id,
         "rating": data.rating,
         "content": data.content,
