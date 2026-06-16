@@ -109,7 +109,9 @@ export default function OrdersPage() {
                 <div className="flex flex-col gap-3 mt-4">
                     {filtered.map((order) => {
                         const isBuyer = order.buyer_id === userId;
+                        const isSeller = order.seller_id === userId;
                         const canReview = order.status === 'completed' && isBuyer;
+                        const canReviewBuyer = order.status === 'completed' && isSeller;
                         const reviewed = reviewedIds.has(order.id);
 
                         return (
@@ -150,10 +152,40 @@ export default function OrdersPage() {
                                             <span className="text-[11px] font-black text-green-600">✓ Reviewed</span>
                                         ) : (
                                             <button
-                                                onClick={() => router.push(`/orders/${order.id}/review`)}
+                                                onClick={() => router.push(`/orders/${order.id}/review-seller`)}
                                                 className="text-[11px] font-black text-CropLink-primary active:opacity-70"
                                             >
                                                 Write a Review →
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {canReview && (
+                                    <div className="border-t border-gray-50 px-4 py-2.5 flex items-center justify-between">
+                                        {reviewed ? (
+                                            <span className="text-[11px] font-black text-green-600">✓ Reviewed</span>
+                                        ) : (
+                                            <button
+                                                onClick={() => router.push(`/orders/${order.id}/review-seller`)}
+                                                className="text-[11px] font-black text-CropLink-primary active:opacity-70"
+                                            >
+                                                Write a Review →
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {canReviewBuyer && (
+                                    <div className="border-t border-gray-50 px-4 py-2.5 flex items-center justify-between">
+                                        {reviewed ? (
+                                            <span className="text-[11px] font-black text-green-600">✓ Reviewed</span>
+                                        ) : (
+                                            <button
+                                                onClick={() => router.push(`/orders/${order.id}/review-buyer`)}
+                                                className="text-[11px] font-black text-CropLink-primary active:opacity-70"
+                                            >
+                                                Review Buyer →
                                             </button>
                                         )}
                                     </div>
