@@ -101,4 +101,9 @@ def get_review_by_transaction(txn_id: str, reviewer_id: str = Depends(get_curren
     review = supabase.table("user_reviews").select("*").eq("transaction_id", txn_id).execute()
     if not review.data:
         raise HTTPException(status_code=404, detail="No review found")
-    return review.data[0]
+    review_data = review.data[0]
+    if review_data["buyer_id"] != reviewer_id and review_data["seller_id"] != reviewer_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this transaction")
+    
+    payment_res = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).execute()
+    return {**review_data, "payment": payment_res.data[0] if payment_res.data else None}
