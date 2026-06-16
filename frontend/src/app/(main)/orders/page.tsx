@@ -161,21 +161,6 @@ export default function OrdersPage() {
                                     </div>
                                 )}
 
-                                {canReview && (
-                                    <div className="border-t border-gray-50 px-4 py-2.5 flex items-center justify-between">
-                                        {reviewed ? (
-                                            <span className="text-[11px] font-black text-green-600">✓ Reviewed</span>
-                                        ) : (
-                                            <button
-                                                onClick={() => router.push(`/orders/${order.id}/review-seller`)}
-                                                className="text-[11px] font-black text-CropLink-primary active:opacity-70"
-                                            >
-                                                Write a Review →
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
                                 {canReviewBuyer && (
                                     <div className="border-t border-gray-50 px-4 py-2.5 flex items-center justify-between">
                                         {reviewed ? (
