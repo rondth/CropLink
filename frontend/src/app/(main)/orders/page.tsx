@@ -36,6 +36,7 @@ export default function OrdersPage() {
                     .catch(() => {});
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
+                setOrders([]);
             } finally {
                 setIsLoading(false);
             }
