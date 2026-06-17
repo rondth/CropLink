@@ -48,7 +48,6 @@ function ListingReviewsPage() {
     const seller_id = searchParams.get('seller_id');
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const listing_id = searchParams.get('listing_id');
 
     useEffect(() => {
         api.get(`/reviews/listing/${id}`)
@@ -65,7 +64,7 @@ function ListingReviewsPage() {
         <div className="flex flex-col min-h-full bg-gray-50">
             <div className="bg-CropLink-primary text-white px-5 h-30 flex flex-col justify-end pb-3">
                 <button
-                    onClick={() => router.push(`/?listing_id=${listing_id}`)}
+                    onClick={() => router.push(`/?listing_id=${id}`)}
                     className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 mb-4"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
@@ -85,7 +84,7 @@ function ListingReviewsPage() {
 
             <div className="px-4 pt-4">
                 <button
-                    onClick={() => router.push(`/profile/${seller_id}`)}
+                    onClick={() => router.push(`/seller/${seller_id}`)}
                     className="w-full flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform"
                 >
                     <div className="flex items-center gap-3">

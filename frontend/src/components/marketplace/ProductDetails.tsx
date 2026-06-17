@@ -242,42 +242,6 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 )}
             </div>
 
-            {/* seller reviews */}
-            <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-black text-gray-800">Seller Reviews</h3>
-                    {avgRating && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-amber-400 text-sm">★</span>
-                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
-                            <span className="text-xs text-gray-400">({reviews.length})</span>
-                        </div>
-                    )}
-                </div>
-
-                {reviewsLoading ? (
-                    <div className="flex justify-center py-4">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-CropLink-primary" />
-                    </div>
-                ) : reviews.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-3">No reviews yet for this seller.</p>
-                ) : (
-                    <div className="flex flex-col gap-2">
-                        {reviews.slice(0, 3).map((review) => (
-                            <ReviewCard key={review.id} review={review} />
-                        ))}
-                        {reviews.length > 3 && (
-                            <button
-                                onClick={() => router.push(`/crops/${product.id}/reviews?seller_id=${product.seller_id}&listing_id=${product.id}`)}
-                                className="text-xs font-black text-CropLink-primary text-center pt-1"
-                            >
-                                View all {reviews.length} reviews →
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
-
             {/* seller profile*/}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
                 <h3 className="text-sm font-black text-gray-800 mb-3">Seller</h3>
