@@ -110,3 +110,24 @@ def get_review_by_transaction(txn_id: str, reviewer_id: str = Depends(get_curren
     
     payment_res = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).execute()
     return {**review_data, "payment": payment_res.data[0] if payment_res.data else None}
+
+
+@router.get("/listing/{listing_id}")
+def get_listing_reviews(listing_id: str):
+    # First get all transaction IDs for this listing
+    txns = supabase.table("transaction").select("id").eq("listing_id", listing_id).execute()
+    
+    if not txns.data:
+        return []
+    
+    txn_ids = [t["id"] for t in txns.data]
+    
+    # Then get reviews for those transactions
+    reviews = (
+        supabase.table("user_reviews")
+        .select("*, reviewer:profiles!user_reviews_reviewer_id_fkey(name, profile_picture_url)")
+        .in_("transaction_id", txn_ids)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return reviews.data

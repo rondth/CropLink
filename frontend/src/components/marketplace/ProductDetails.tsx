@@ -54,11 +54,11 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
 
     useEffect(() => {
         if (!product.seller_id) return;
-        api.get(`/reviews/seller/${product.seller_id}`)
+        api.get(`/reviews/listing/${product.id}`)
             .then(res => setReviews(res.data))
             .catch(() => {})
             .finally(() => setReviewsLoading(false));
-    }, [product.seller_id]);
+    }, [product.id]);
 
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
