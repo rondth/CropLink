@@ -34,7 +34,7 @@ function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: ()
                      <div className="w-40 h-40 rounded-full" style={conicGradientStyle}></div>
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
                         <span className="text-xs text-gray-500">Revenue</span>
-                        <span className="text-lg font-black text-gray-800">{totalRevenue.toFixed(0)}</span>
+                        <span className="text-lg font-black text-gray-800">{Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalRevenue)}</span>
                      </div>
                 </div>
                 {/* desc */}
@@ -45,7 +45,7 @@ function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: ()
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                                 <span className="font-medium text-gray-600">{item.name}</span>
                             </div>
-                            <span className="text-gray-800">{item.price.toFixed(0)} <strong>({item.percentage}%)</strong></span>
+                            <span className="text-gray-800">{Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price)} <strong>({item.percentage}%)</strong></span>
                         </div>
                     )) : (
                         <p className="text-center text-gray-500 text-xs">No revenue data for the last month.</p>
