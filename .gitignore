@@ -25,6 +25,7 @@ yarn-error.log*
 .pnpm-debug.log*
 package-lock.json
 yarn.lock
+tsconfig.tsbuildinfo
 
 # Environment variables — NEVER commit these
 .env

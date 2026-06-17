@@ -15,7 +15,7 @@ export default function MobileLayout({
             <div className="bg-[#faf8f5] flex flex-col relative overflow-hidden w-full h-[100dvh]
                             sm:w-[360px] sm:h-[740px] sm:rounded-[40px] sm:border-8 sm:border-CropLink-dark sm:shadow-2xl">
                 {showChrome && <Header />}
-                    <div className="flex-1 overflow-y-auto no-scrollbar overscroll-none">
+                    <div id="main-scroller" className="flex-1 overflow-y-auto no-scrollbar overscroll-none">
                         {children}
                     </div>
                 {showChrome && <Navbar />}
