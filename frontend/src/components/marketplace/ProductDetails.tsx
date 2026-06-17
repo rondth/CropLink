@@ -42,9 +42,10 @@ function ReviewCard({ review }: { review: any }) {
 
 export default function ProductDetails({ product, onBack, onSellerClick }: { product: any, onBack: () => void, onSellerClick?: () => void }) {
     const router = useRouter();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const [marketPrice, setMarketPrice] = useState<any>(null);
     const [sellerProfile, setSellerProfile] = useState<any>(null);
+    const isOwnListing = user?.user_id === product.seller_id;
 
     useEffect(() => {
         const fetchMarketData = async () => {
@@ -271,9 +272,13 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                         <div className="flex-1 text-left">
                             <p className="text-sm font-black text-gray-800">{sellerProfile.name}</p>
                             <p className="text-[11px] text-gray-500 mt-0.5">
-                                <span className="text-amber-500 font-bold">★ 5.0</span>
+                                <span className="text-amber-500 font-bold">
+                                    ★ {avgRating ?? '—'}
+                                </span>
                                 <span className="text-gray-300 mx-1">•</span>
-                                <span className="font-medium">0 reviews</span>
+                                <span className="font-medium">
+                                    {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+                                </span>
                             </p>
                         </div>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 shrink-0"><path d="m9 18 6-6-6-6"/></svg>
@@ -302,7 +307,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 </div>
                 <button
                     onClick={handleOrder}
-                    disabled={quantity < minOrder || quantity > maxQty || maxQty === 0}
+                    disabled={isOwnListing || quantity < minOrder || quantity > maxQty || maxQty === 0}
                     className="bg-CropLink-primary text-white font-black text-sm py-3 px-6 rounded-xl shadow-md shadow-CropLink-primary/30 active:scale-95 transition-all flex-1 ml-4 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                     Order Now
