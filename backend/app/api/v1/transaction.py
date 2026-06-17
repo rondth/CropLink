@@ -146,16 +146,21 @@ async def stripe_webhook(request: Request):
     return {"status": "ok"}
 
 @router.get("/transactions")
-async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Literal["asc", "desc"] = "desc"):
-    bought = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("buyer_id", user_id).execute()
-    sold = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute()
+async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Literal["asc", "desc"] = "desc", role: str = None):
+    if role == "seller":
+        rows = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute().data
+    elif role == "buyer":
+        rows = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("buyer_id", user_id).execute().data
+    else:
+        bought = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("buyer_id", user_id).execute()
+        sold = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute()
+        rows = bought.data + sold.data
 
-    all_txns = bought.data + sold.data
-    all_txns.sort(key=lambda x: x.get("created_at", ""), reverse=(sort == "desc"))
+    rows.sort(key=lambda x: x.get("created_at", ""), reverse=(sort == "desc"))
 
     seen = set()
     deduped = []
-    for t in all_txns:
+    for t in rows:
         if t["id"] not in seen:
             seen.add(t["id"])
             deduped.append(t)
