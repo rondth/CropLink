@@ -1,11 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
+import { useSearchParams } from 'next/navigation';
 
 interface Product {
     id: string;
@@ -13,7 +14,7 @@ interface Product {
     [key: string]: any;
 }
 
-export default function Home() {
+function HomeContent() {
     const { role } = useRole();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState<Product[]>([]);
@@ -21,18 +22,28 @@ export default function Home() {
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 6;
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const fetchListings = async () => {
             try {
                 const response = await api.get('/listings/');
-                setProducts(response.data); 
+                setProducts(response.data);
             } catch (error) {
                 console.error("Failed to fetch listings:", error);
             }
         };
         fetchListings();
     }, []);
+
+    useEffect(() => {
+        const listingId = searchParams.get('listing_id');
+        if (!listingId) return;
+
+        api.get(`/listings/${listingId}`)
+            .then(res => setSelectedProduct(res.data))
+            .catch(err => console.error('Failed to load listing from URL:', err));
+    }, [searchParams]);
 
     const filteredProducts = products.filter(product => {
         const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
@@ -98,5 +109,13 @@ export default function Home() {
                 <Dashboard />
             )}
         </>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense>
+            <HomeContent />
+        </Suspense>
     );
 }

@@ -18,6 +18,8 @@ interface Transaction {
         photo_url?: string;
         location: string;
         category: string;
+        min_order_quantity?: number;
+        quantity?: number;
     };
     payment?: {
         amount: number;
@@ -45,6 +47,10 @@ export default function OrderDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updating, setUpdating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [newQuantity, setNewQuantity] = useState(0);
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const role = (user as any)?.user_metadata?.role ?? (user as any)?.role;
 
@@ -52,10 +58,15 @@ export default function OrderDetailPage() {
         if (!authLoading && !isAuthenticated) return;
         if (!transactionId) return;
 
-        const fetchOrder = async () => {
+        const fetchOrder = async (retries = 5) => {
             try {
                 const response = await api.get(`/transactions/${transactionId}`);
                 setOrder(response.data);
+                setNewQuantity(response.data.quantity);
+
+                if (response.data.status === 'pending' && retries > 0) {
+                    setTimeout(() => fetchOrder(retries - 1), 1500);
+                }
             } catch (err: any) {
                 setError(err?.response?.data?.detail || 'Failed to load order.');
             } finally {
@@ -74,10 +85,34 @@ export default function OrderDetailPage() {
             setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
         } catch (err: any) {
             console.log(err?.response);
-            alert(err?.response?.data?.detail || 'Failed to cancel order.');
+            setErrorMessage(err?.response?.data?.detail || 'Failed to cancel order.');
         } finally {
             setUpdating(false);
         }
+    };
+
+    const handleSave = async () => {
+        if (!order) return;
+        setIsSaving(true);
+        try {
+            const res = await api.patch(`/transactions/${order.id}`, { quantity: newQuantity });
+            setOrder(prev => prev ? { ...prev, quantity: res.data.quantity } : prev);
+            setIsEditing(false);
+        } catch (err: any) {
+            if (err?.response?.data?.detail === 'already_paid') {
+                setOrder(prev => prev ? { ...prev, status: 'completed' } : prev);
+                setIsEditing(false);
+                return;
+            }
+            setErrorMessage(err?.response?.data?.detail || 'Failed to update order.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handlePay = () => {
+        if (!order) return;
+        router.push(`/checkout/${order.id}`);
     };
 
     if (authLoading || isLoading) {
@@ -124,8 +159,13 @@ export default function OrderDetailPage() {
     const counterparty = role === 'buyer' ? order.seller : order.buyer;
     const counterpartyLabel = role === 'buyer' ? 'Farmer / Seller' : 'Distributor / Buyer';
 
+    const PLATFORM_FEE_RATE = 0.02; // 2%
+    const subtotal = order.quantity * (order.listing?.price ?? 0);
+    const platformFee = subtotal * PLATFORM_FEE_RATE;
+    const total = subtotal + platformFee;
+
     return (
-        <div className="p-6 max-w-lg mx-auto">
+        <div className="relative p-6 max-w-lg mx-auto">
             {/* Back button */}
             <button
                 onClick={() => router.push('/orders')}
@@ -151,7 +191,10 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Crop info card */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+            <div
+                onClick={() => router.push(`/?listing_id=${order.listing?.id}`)}
+                className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 cursor-pointer hover:shadow-md transition-shadow"
+            >
                 <div className="flex items-center gap-3">
                     {order.listing?.photo_url ? (
                         <img
@@ -196,6 +239,18 @@ export default function OrderDetailPage() {
                         value={`${order.quantity} ${order.listing?.unit_of_measurement ?? 'units'}`}
                     />
                     <Row
+                        label="Min. Order Qty"
+                        value={order.listing?.min_order_quantity != null
+                            ? `${order.listing.min_order_quantity} ${order.listing?.unit_of_measurement ?? 'units'}`
+                            : '-'}
+                    />
+                    <Row
+                        label="Available Qty"
+                        value={order.listing?.quantity != null
+                            ? `${order.listing.quantity} ${order.listing?.unit_of_measurement ?? 'units'}`
+                            : '-'}
+                    />
+                    <Row
                         label="Price / unit"
                         value={`${order.currency} ${order.listing?.price?.toLocaleString('en-US', { minimumFractionDigits: 2 }) ?? '—'}`}
                     />
@@ -206,13 +261,17 @@ export default function OrderDetailPage() {
                 <div className="mt-3 pt-3 border-t border-gray-50 flex flex-col gap-2">
                     <Row
                         label="Subtotal"
-                        value={`${order.currency} ${(order.quantity * (order.listing?.price ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                        value={`${order.currency} ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                    />
+                    <Row
+                        label="Platform Fee (2%)"
+                        value={`${order.currency} ${platformFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                     />
                     <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-100">
                         <span className="text-sm font-black text-gray-800">Total</span>
                         <span className="text-sm font-black text-CropLink-primary">
                             {order.payment?.currency ?? order.currency}{' '}
-                            {order.payment?.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 }) ?? '—'}
+                            {total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </span>
                     </div>
                 </div>
@@ -231,28 +290,89 @@ export default function OrderDetailPage() {
                 </div>
             )}
 
-            {/* Cancel order (buyer only, pending orders) */}
+            {/* Edit & cancel order (buyer only, pending orders) */}
             {role === 'buyer' && order.status === 'pending' && (
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                    <button
-                        onClick={handleCancel}
-                        disabled={updating}
-                        className="w-full bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
-                    >
-                        Cancel Order
-                    </button>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 flex flex-col gap-2">
+                    {!isEditing && (
+                        <button
+                            onClick={handlePay}
+                            className="w-full bg-CropLink-primary text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 active:scale-95 transition-transform"
+                        >
+                            Pay Now
+                        </button>
+                    )}
+                    {isEditing ? (
+                        <>
+                            {/* Quantity stepper */}
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-bold text-gray-700">New Quantity</span>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setNewQuantity(q => Math.max(1, q - 1))}
+                                        className="w-8 h-8 rounded-lg bg-gray-100 font-bold text-gray-700 flex items-center justify-center active:scale-95 transition-all"
+                                    >−</button>
+                                    <input
+                                        type="number"
+                                        value={newQuantity}
+                                        onChange={(e) => setNewQuantity(Math.max(1, Number(e.target.value)))}
+                                        className="font-black text-gray-800 text-sm w-20 text-center outline-none"
+                                    />
+                                    <button
+                                        onClick={() => setNewQuantity(q => q + 1)}
+                                        className="w-8 h-8 rounded-lg bg-gray-100 font-bold text-gray-700 flex items-center justify-center active:scale-95 transition-all"
+                                    >+</button>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="w-full bg-CropLink-primary text-white font-black text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 disabled:opacity-50 active:scale-95 transition-transform"
+                            >
+                                {isSaving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                            <button
+                                onClick={() => { setIsEditing(false); setNewQuantity(order.quantity); }}
+                                className="w-full border border-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                            >
+                                Cancel Edit
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="w-full bg-CropLink-primary text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 active:scale-95 transition-transform"
+                            >
+                                Edit Order
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={updating}
+                                className="w-full bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
+                            >
+                                Cancel Order
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
 
-            {/* Rating placeholder (Feature 4, Weeks 8-9) */}
-            {order.status === 'completed' && (
-                <div className="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-200 mb-3">
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">
-                        Rate this {role === 'buyer' ? 'Seller' : 'Buyer'}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                        Rating system coming soon
-                    </p>
+            {order.status === 'completed' && role === 'buyer' && (
+                <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review`)} />
+            )}
+
+            { /* Error message */ }
+            {errorMessage && (
+                <div className="absolute fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+                    <div className="bg-white rounded-2xl p-6 mx-6 shadow-xl max-w-sm w-full">
+                    <p className="text-gray-700 text-sm mb-6">{errorMessage}</p>
+                    <button
+                        onClick={() => setErrorMessage(null)}
+                        className="w-full bg-[#4A7C59] text-white py-2 rounded-lg font-medium"
+                    >
+                        Close
+                    </button>
+                    </div>
                 </div>
             )}
         </div>
@@ -268,6 +388,34 @@ function Row({ label, value, mono = false }: { label: string; value: string; mon
             <span className={`text-[11px] font-bold text-gray-700 text-right ${mono ? 'font-mono' : ''}`}>
                 {value}
             </span>
+        </div>
+    );
+}
+
+function ReviewCTA({ transactionId, onWrite }: { transactionId: string; onWrite: () => void }) {
+    const [reviewed, setReviewed] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        api.get(`/reviews/transaction/${transactionId}`)
+            .then(() => setReviewed(true))
+            .catch(() => setReviewed(false));
+    }, [transactionId]);
+
+    if (reviewed === null) return null;
+
+    return (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">Review</p>
+            {reviewed ? (
+                <p className="text-sm font-black text-green-600 text-center"> You've reviewed this order</p>
+            ) : (
+                <button
+                    onClick={onWrite}
+                    className="w-full bg-CropLink-primary/10 text-CropLink-primary font-black text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                >
+                    Write a Review
+                </button>
+            )}
         </div>
     );
 }
