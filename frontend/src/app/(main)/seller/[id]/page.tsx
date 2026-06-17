@@ -90,7 +90,7 @@ export default function SellerProfile() {
 
                 {/* avatar */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-10">
-                    <div className="size-24 rounded-full overflow-hidden border-4 border-white ring-4 ring-CropLink-primary shadow-lg">
+                    <div className="size-24 rounded-full overflow-hidden ring-4 ring-CropLink-primary shadow-lg">
                         {profile.profile_picture_url ? (
                             <img src={profile.profile_picture_url} className="w-full h-full object-cover" alt={profile.name} />
                         ) : (

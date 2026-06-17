@@ -19,7 +19,7 @@ export default function SellerReviews() {
     }, [id]);
 
     const avgRating = reviews.length
-        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
         : null;
 
     return (
@@ -51,7 +51,6 @@ export default function SellerReviews() {
                     </div>
                 ) : reviews.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-2">
-                        <span className="text-4xl">⭐</span>
                         <p className="text-sm font-bold text-gray-400">No reviews yet.</p>
                     </div>
                 ) : (
