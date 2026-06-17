@@ -1,5 +1,7 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle } from 'lucide-react';
@@ -24,6 +26,12 @@ export default function Profile() {
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
     const [showAllReviews, setShowAllReviews] = useState(false);
+    const [cropModalOpen, setCropModalOpen] = useState(false);
+    const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+    const [crop, setCrop] = useState<Crop>();
+    const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+    const imgRef = useRef<HTMLImageElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -72,8 +80,12 @@ export default function Profile() {
             alert('Image must be under 5MB.');
             return;
         }
-        setSelectedFile(file);
-        setPreviewUrl(URL.createObjectURL(file));
+        const reader = new FileReader();
+        reader.onload = () => {
+            setRawImageSrc(reader.result as string);
+            setCropModalOpen(true);
+        };
+        reader.readAsDataURL(file);
     };
 
     const uploadAvatar = async (file: File): Promise<string | null> => {
@@ -91,6 +103,62 @@ export default function Profile() {
 
         const { data } = supabase.storage.from('profile_pictures').getPublicUrl(fileName);
         return data.publicUrl;
+    };
+
+    const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { width, height } = e.currentTarget;
+        const initialCrop = centerCrop(
+            makeAspectCrop({ unit: '%', width: 80 }, 1, width, height),
+            width, height
+        );
+        setCrop(initialCrop);
+    };
+
+    const getCroppedFile = useCallback((): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const image = imgRef.current;
+            const canvas = canvasRef.current;
+            if (!image || !canvas || !completedCrop) return reject('Missing refs');
+
+            const scaleX = image.naturalWidth / image.width;
+            const scaleY = image.naturalHeight / image.height;
+            const size = 400; // output size in px
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject('No canvas context');
+
+            // white background (handles transparent PNGs)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+
+            ctx.drawImage(
+                image,
+                completedCrop.x * scaleX,
+                completedCrop.y * scaleY,
+                completedCrop.width * scaleX,
+                completedCrop.height * scaleY,
+                0, 0, size, size
+            );
+
+            canvas.toBlob(blob => {
+                if (!blob) return reject('Canvas empty');
+                resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.92);
+        });
+    }, [completedCrop]);
+
+    const handleCropConfirm = async () => {
+        try {
+            const croppedFile = await getCroppedFile();
+            setSelectedFile(croppedFile);
+            setPreviewUrl(URL.createObjectURL(croppedFile));
+            setCropModalOpen(false);
+            setRawImageSrc(null);
+        } catch (err) {
+            console.error('Crop failed:', err);
+        }
     };
 
     const handleSave = async () => {
@@ -207,7 +275,7 @@ export default function Profile() {
                 {/* avatar */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-10">
                     <div className="relative">
-                        <div className="size-24 rounded-full overflow-hidden border-4 border-white ring-4 ring-CropLink-primary shadow-lg">
+                        <div className="size-24 rounded-full overflow-hidden ring-4 ring-CropLink-primary shadow-lg">
                             {previewUrl || avatarUrl ? (
                                 <img src={previewUrl || avatarUrl || ''} className="w-full h-full object-cover" alt="Profile" />
                             ) : (
@@ -387,6 +455,54 @@ export default function Profile() {
                 <LogOut className="w-4 h-4" />
                 Log Out
             </button>
+
+            {/* crop modal */}
+            {cropModalOpen && rawImageSrc && (
+                <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl overflow-hidden w-full max-w-sm">
+                        <div className="p-4 border-b border-gray-100">
+                            <h3 className="text-sm font-black text-gray-800 text-center">Crop your photo</h3>
+                            <p className="text-xs text-gray-400 text-center mt-0.5">Drag to reposition</p>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-center bg-gray-50">
+                            <ReactCrop
+                                crop={crop}
+                                onChange={c => setCrop(c)}
+                                onComplete={c => setCompletedCrop(c)}
+                                aspect={1}
+                                circularCrop
+                            >
+                                <img
+                                    ref={imgRef}
+                                    src={rawImageSrc}
+                                    onLoad={onImageLoad}
+                                    className="max-h-72 max-w-full object-contain"
+                                    alt="Crop preview"
+                                />
+                            </ReactCrop>
+                        </div>
+
+                        {/* hidden canvas used to render the crop */}
+                        <canvas ref={canvasRef} className="hidden" />
+
+                        <div className="p-4 flex gap-3">
+                            <button
+                                onClick={() => { setCropModalOpen(false); setRawImageSrc(null); }}
+                                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 active:scale-95 transition-transform"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCropConfirm}
+                                className="flex-1 py-3 rounded-xl bg-CropLink-primary text-white text-sm font-bold active:scale-95 transition-transform"
+                            >
+                                Use Photo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
