@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator, Field
 from typing import Optional, Literal
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
 from urllib.parse import unquote
@@ -119,7 +119,7 @@ def create_listing(
 # GET /listings
 @router.get("/")
 def get_listings():
-    response = supabase.table("crops_listings").select("*").eq("status", "active").execute()
+    response = supabase.table("crops_listings").select("*").eq("status", "active").gt("quantity", 0).execute()
     listings = response.data
 
     seller_ids = list({l["seller_id"] for l in listings if l.get("seller_id")})
@@ -184,6 +184,7 @@ def delete_listing(
     supabase.table("crops_listings").delete().eq("id", listing_id).execute()
     return None 
 
+
 # GET categories
 @router.get("/categories", response_model=list[str])
 def get_categories():
@@ -205,7 +206,7 @@ def get_categories():
 @router.get("/category/{category}")
 def get_listings_by_category(category: str):
     decoded_category = unquote(category)
-    response = supabase.table("crops_listings").select("*").eq("category", decoded_category).eq("status", "active").execute()
+    response = supabase.table("crops_listings").select("*").eq("category", category).eq("status", "active").execute()
     return response.data
 
 #GET /listings/prices
@@ -392,4 +393,5 @@ def get_listing(listing_id: str):
         listing["seller_name"] = profile.data[0].get("name") if profile.data else None
 
     return listing
+    
     

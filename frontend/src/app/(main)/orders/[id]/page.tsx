@@ -358,7 +358,7 @@ export default function OrderDetailPage() {
             )}
 
             {order.status === 'completed' && role === 'buyer' && (
-                <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review`)} />
+                <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review-seller`)} />
             )}
 
             { /* Error message */ }

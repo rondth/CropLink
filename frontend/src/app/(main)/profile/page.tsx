@@ -1,10 +1,13 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import ReviewCard from '@/components/marketplace/ReviewCard';
 
 export default function Profile() {
     const { isAuthenticated, isLoading, user, logout, refreshUser } = useAuth();
@@ -20,6 +23,15 @@ export default function Profile() {
     const [profileLoading, setProfileLoading] = useState(true);
     const [numListings, setNumListings] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [reviewsLoading, setReviewsLoading] = useState(true);
+    const [showAllReviews, setShowAllReviews] = useState(false);
+    const [cropModalOpen, setCropModalOpen] = useState(false);
+    const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+    const [crop, setCrop] = useState<Crop>();
+    const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+    const imgRef = useRef<HTMLImageElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -37,6 +49,25 @@ export default function Profile() {
         }
     }, [isAuthenticated, user]);
 
+    useEffect(() => {
+        if (!isAuthenticated || !user) return;
+        const userId = (user as any)?.user_id || (user as any)?.id;
+        if (!userId) return;
+
+        const endpoint = user.role === 'seller'
+            ? `/reviews/seller/${userId}`
+            : `/reviews/buyer/${userId}`;
+
+        api.get(endpoint)
+            .then(res => setReviews(res.data))
+            .catch(() => {})
+            .finally(() => setReviewsLoading(false));
+    }, [isAuthenticated, user]);
+
+    const avgRating = reviews.length
+        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
+        : null;
+
     const handleLogout = async () => {
         await logout();
         router.push('/login');
@@ -49,8 +80,12 @@ export default function Profile() {
             alert('Image must be under 5MB.');
             return;
         }
-        setSelectedFile(file);
-        setPreviewUrl(URL.createObjectURL(file));
+        const reader = new FileReader();
+        reader.onload = () => {
+            setRawImageSrc(reader.result as string);
+            setCropModalOpen(true);
+        };
+        reader.readAsDataURL(file);
     };
 
     const uploadAvatar = async (file: File): Promise<string | null> => {
@@ -68,6 +103,62 @@ export default function Profile() {
 
         const { data } = supabase.storage.from('profile_pictures').getPublicUrl(fileName);
         return data.publicUrl;
+    };
+
+    const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { width, height } = e.currentTarget;
+        const initialCrop = centerCrop(
+            makeAspectCrop({ unit: '%', width: 80 }, 1, width, height),
+            width, height
+        );
+        setCrop(initialCrop);
+    };
+
+    const getCroppedFile = useCallback((): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const image = imgRef.current;
+            const canvas = canvasRef.current;
+            if (!image || !canvas || !completedCrop) return reject('Missing refs');
+
+            const scaleX = image.naturalWidth / image.width;
+            const scaleY = image.naturalHeight / image.height;
+            const size = 400; // output size in px
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject('No canvas context');
+
+            // white background (handles transparent PNGs)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+
+            ctx.drawImage(
+                image,
+                completedCrop.x * scaleX,
+                completedCrop.y * scaleY,
+                completedCrop.width * scaleX,
+                completedCrop.height * scaleY,
+                0, 0, size, size
+            );
+
+            canvas.toBlob(blob => {
+                if (!blob) return reject('Canvas empty');
+                resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.92);
+        });
+    }, [completedCrop]);
+
+    const handleCropConfirm = async () => {
+        try {
+            const croppedFile = await getCroppedFile();
+            setSelectedFile(croppedFile);
+            setPreviewUrl(URL.createObjectURL(croppedFile));
+            setCropModalOpen(false);
+            setRawImageSrc(null);
+        } catch (err) {
+            console.error('Crop failed:', err);
+        }
     };
 
     const handleSave = async () => {
@@ -184,7 +275,7 @@ export default function Profile() {
                 {/* avatar */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-10">
                     <div className="relative">
-                        <div className="size-24 rounded-full overflow-hidden border-4 border-white ring-4 ring-CropLink-primary shadow-lg">
+                        <div className="size-24 rounded-full overflow-hidden ring-4 ring-CropLink-primary shadow-lg">
                             {previewUrl || avatarUrl ? (
                                 <img src={previewUrl || avatarUrl || ''} className="w-full h-full object-cover" alt="Profile" />
                             ) : (
@@ -251,7 +342,6 @@ export default function Profile() {
             </div>
 
             {/* stats card */}
-            {/* currently hardcoded */}
             <div className="mx-5 mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 flex items-center justify-around">
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
@@ -262,14 +352,18 @@ export default function Profile() {
 
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                    <span className="text-xl font-black text-gray-800">0</span>
+                    <span className="text-xl font-black text-gray-800">
+                        {reviewsLoading ? '—' : reviews.length}
+                    </span>
                 </div>
 
                 <div className="w-px h-8 bg-gray-100" />
 
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
-                    <span className="text-xl font-black text-amber-500">★ 5.0</span>
+                    <span className="text-xl font-black text-amber-500">
+                        {reviewsLoading ? '—' : avgRating ? `★ ${avgRating}` : '★ —'}
+                    </span>
                 </div>
             </div>
 
@@ -307,6 +401,52 @@ export default function Profile() {
                 )}
             </div>
 
+            {/* reviews section */}
+            <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-black text-gray-800">My Reviews</h2>
+                    {avgRating && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-amber-400 text-sm">★</span>
+                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
+                            <span className="text-xs text-gray-400">({reviews.length})</span>
+                        </div>
+                    )}
+                </div>
+
+                {reviewsLoading ? (
+                    <div className="flex justify-center py-6">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-CropLink-primary" />
+                    </div>
+                ) : reviews.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">No reviews yet.</p>
+                ) : (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            {(showAllReviews ? reviews : reviews.slice(0, 3)).map(review => (
+                                <ReviewCard
+                                    key={review.id}
+                                    reviewerName={review.reviewer?.name || 'Anonymous'}
+                                    reviewerAvatar={review.reviewer?.profile_picture_url}
+                                    rating={review.rating}
+                                    content={review.content}
+                                    createdAt={review.created_at}
+                                />
+                            ))}
+                        </div>
+
+                        {reviews.length > 3 && (
+                            <button
+                                onClick={() => router.push('/profile/reviews')}
+                                className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
+                            >
+                                View all {reviews.length} reviews
+                            </button>
+                        )}
+                    </>
+                )}
+            </div>
+
             {/* logout */}
             <button
                 onClick={handleLogout}
@@ -315,6 +455,54 @@ export default function Profile() {
                 <LogOut className="w-4 h-4" />
                 Log Out
             </button>
+
+            {/* crop modal */}
+            {cropModalOpen && rawImageSrc && (
+                <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl overflow-hidden w-full max-w-sm">
+                        <div className="p-4 border-b border-gray-100">
+                            <h3 className="text-sm font-black text-gray-800 text-center">Crop your photo</h3>
+                            <p className="text-xs text-gray-400 text-center mt-0.5">Drag to reposition</p>
+                        </div>
+
+                        <div className="p-4 flex items-center justify-center bg-gray-50">
+                            <ReactCrop
+                                crop={crop}
+                                onChange={c => setCrop(c)}
+                                onComplete={c => setCompletedCrop(c)}
+                                aspect={1}
+                                circularCrop
+                            >
+                                <img
+                                    ref={imgRef}
+                                    src={rawImageSrc}
+                                    onLoad={onImageLoad}
+                                    className="max-h-72 max-w-full object-contain"
+                                    alt="Crop preview"
+                                />
+                            </ReactCrop>
+                        </div>
+
+                        {/* hidden canvas used to render the crop */}
+                        <canvas ref={canvasRef} className="hidden" />
+
+                        <div className="p-4 flex gap-3">
+                            <button
+                                onClick={() => { setCropModalOpen(false); setRawImageSrc(null); }}
+                                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 active:scale-95 transition-transform"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCropConfirm}
+                                className="flex-1 py-3 rounded-xl bg-CropLink-primary text-white text-sm font-bold active:scale-95 transition-transform"
+                            >
+                                Use Photo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

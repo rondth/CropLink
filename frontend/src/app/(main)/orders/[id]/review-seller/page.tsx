@@ -34,7 +34,7 @@ export default function ReviewPage() {
         if (rating === 0) return;
         setIsSubmitting(true);
         try {
-            await api.post('/reviews/', { transaction_id: id, rating, comment: comment || null });
+            await api.post('/reviews/seller', { transaction_id: id, rating, content: comment || null });
             router.push('/orders');
         } catch (err: any) {
             alert(err?.response?.data?.detail || 'Failed to submit review.');

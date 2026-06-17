@@ -5,6 +5,7 @@ import { CheckCircle, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import ProductDetails from '@/components/marketplace/ProductDetails';
+import ReviewCard from '@/components/marketplace/ReviewCard';
 
 export default function SellerProfile() {
     const params = useParams();
@@ -15,15 +16,22 @@ export default function SellerProfile() {
     const [listings, setListings] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
+    const [reviews, setReviews] = useState<any[]>([]);
+
+    const avgRating = reviews.length
+        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
+        : null;
 
     useEffect(() => {
         if (!sellerId) return;
         Promise.all([
             api.get(`/auth/profile/${sellerId}`),
             api.get('/listings/'),
-        ]).then(([profileRes, listingsRes]) => {
+            api.get(`/reviews/seller/${sellerId}`),
+        ]).then(([profileRes, listingsRes, reviewsRes]) => {
             setProfile(profileRes.data);
             setListings(listingsRes.data.filter((l: any) => l.seller_id === sellerId && l.status === 'active'));
+            setReviews(reviewsRes.data);
         }).catch(err => {
             console.error("Failed to load seller profile:", err);
         }).finally(() => {
@@ -82,7 +90,7 @@ export default function SellerProfile() {
 
                 {/* avatar */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-10">
-                    <div className="size-24 rounded-full overflow-hidden border-4 border-white ring-4 ring-CropLink-primary shadow-lg">
+                    <div className="size-24 rounded-full overflow-hidden ring-4 ring-CropLink-primary shadow-lg">
                         {profile.profile_picture_url ? (
                             <img src={profile.profile_picture_url} className="w-full h-full object-cover" alt={profile.name} />
                         ) : (
@@ -114,12 +122,14 @@ export default function SellerProfile() {
                 <div className="w-px h-8 bg-gray-100" />
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                    <span className="text-xl font-black text-gray-800">0</span>
+                    <span className="text-xl font-black text-gray-800">{reviews.length}</span>
                 </div>
                 <div className="w-px h-8 bg-gray-100" />
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
-                    <span className="text-xl font-black text-amber-500">★ 5.0</span>
+                    <span className="text-xl font-black text-amber-500">
+                        {avgRating ? `★ ${avgRating}` : '★ —'}
+                    </span>
                 </div>
             </div>
 
@@ -130,6 +140,47 @@ export default function SellerProfile() {
                     <p className="text-sm text-gray-700 leading-relaxed">{profile.bio}</p>
                 </div>
             )}
+
+            {/* reviews */}
+            <div className="mt-5 mx-5">
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-black text-gray-800">Reviews</h2>
+                    {avgRating && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-amber-400 text-sm">★</span>
+                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
+                            <span className="text-xs text-gray-400">({reviews.length})</span>
+                        </div>
+                    )}
+                </div>
+
+                {reviews.length === 0 ? (
+                    <p className="text-xs text-center text-gray-400 py-6">No reviews yet.</p>
+                ) : (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            {reviews.slice(0, 3).map(review => (
+                                <ReviewCard
+                                    key={review.id}
+                                    reviewerName={review.reviewer?.name || 'Anonymous'}
+                                    reviewerAvatar={review.reviewer?.profile_picture_url}
+                                    rating={review.rating}
+                                    content={review.content}
+                                    createdAt={review.created_at}
+                                />
+                            ))}
+                        </div>
+                        {reviews.length > 3 && (
+                            <button
+                                onClick={() => router.push(`/seller/${sellerId}/reviews`)}
+                                className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
+                            >
+                                View all {reviews.length} reviews
+                            </button>
+                        )}
+                    </>
+                )}
+            </div>
 
             {/* listings */}
             <div className="mt-5">

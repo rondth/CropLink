@@ -9,8 +9,6 @@ class Settings(BaseSettings):
     stripe_secret_key: str
     stripe_webhook_secret: str
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
