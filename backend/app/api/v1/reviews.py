@@ -70,7 +70,7 @@ def create_buyer_review(data: ReviewCreate, reviewer_id: str = Depends(get_curre
 def get_seller_reviews(seller_id: str):
     reviews = (
         supabase.table("user_reviews")
-        .select("*, reviewer:profiles!reviewer_id(name, profile_picture_url)")
+        .select("*, reviewer:profiles!user_reviews_reviewer_id_fkey(name, profile_picture_url)")
         .eq("seller_id", seller_id)
         .order("created_at", desc=True)
         .execute()
@@ -82,7 +82,7 @@ def get_seller_reviews(seller_id: str):
 def get_buyer_reviews(buyer_id: str):
     reviews = (
         supabase.table("user_reviews")
-        .select("*, reviewer:profiles!reviewer_id(name, profile_picture_url)")
+        .select("*, reviewer:profiles!user_reviews_reviewer_id_fkey(name, profile_picture_url)")
         .eq("buyer_id", buyer_id)
         .order("created_at", desc=True)
         .execute()
@@ -102,7 +102,10 @@ def get_review_by_transaction(txn_id: str, reviewer_id: str = Depends(get_curren
     if not review.data:
         raise HTTPException(status_code=404, detail="No review found")
     review_data = review.data[0]
-    if review_data["buyer_id"] != reviewer_id and review_data["seller_id"] != reviewer_id:
+
+    authorized_ids = {review_data.get("reviewer_id"), review_data.get("buyer_id"), review_data.get("seller_id")}
+    authorized_ids.discard(None)
+    if reviewer_id not in authorized_ids:
         raise HTTPException(status_code=403, detail="Not authorized to view this transaction")
     
     payment_res = supabase.table("payments").select("status, amount, currency").eq("transaction_id", txn_id).execute()
