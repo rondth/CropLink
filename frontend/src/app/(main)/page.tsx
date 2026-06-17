@@ -25,6 +25,11 @@ function HomeContent() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
+        const pending = sessionStorage.getItem('pendingProduct');
+        if (pending) {
+            sessionStorage.removeItem('pendingProduct');
+            setSelectedProduct(JSON.parse(pending));
+        }
         const fetchListings = async () => {
             try {
                 const response = await api.get('/listings/');
@@ -55,6 +60,13 @@ function HomeContent() {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+    useEffect(() => {
+        if (selectedProduct) {
+            const scroller = document.getElementById('main-scroller');
+            if (scroller) scroller.scrollTop = 0;
+        }
+    }, [selectedProduct]);
+
     // resets to page 1 when category or search filter changes
     useEffect(() => {
         setCurrentPage(1);
@@ -67,7 +79,7 @@ function HomeContent() {
 
     return (
         <>
-            {role === 'buyer' ? (
+            {role !== 'seller' ? (
                 selectedProduct ? (
                     <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />
                 ) : (
