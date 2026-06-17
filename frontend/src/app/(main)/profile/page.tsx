@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import ReviewCard from '@/components/marketplace/ReviewCard';
 
 export default function Profile() {
     const { isAuthenticated, isLoading, user, logout, refreshUser } = useAuth();
@@ -20,6 +21,9 @@ export default function Profile() {
     const [profileLoading, setProfileLoading] = useState(true);
     const [numListings, setNumListings] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [reviewsLoading, setReviewsLoading] = useState(true);
+    const [showAllReviews, setShowAllReviews] = useState(false);
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -36,6 +40,25 @@ export default function Profile() {
             });
         }
     }, [isAuthenticated, user]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !user) return;
+        const userId = (user as any)?.user_id || (user as any)?.id;
+        if (!userId) return;
+
+        const endpoint = user.role === 'seller'
+            ? `/reviews/seller/${userId}`
+            : `/reviews/buyer/${userId}`;
+
+        api.get(endpoint)
+            .then(res => setReviews(res.data))
+            .catch(() => {})
+            .finally(() => setReviewsLoading(false));
+    }, [isAuthenticated, user]);
+
+    const avgRating = reviews.length
+        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
+        : null;
 
     const handleLogout = async () => {
         await logout();
@@ -251,7 +274,6 @@ export default function Profile() {
             </div>
 
             {/* stats card */}
-            {/* currently hardcoded */}
             <div className="mx-5 mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 flex items-center justify-around">
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
@@ -262,14 +284,18 @@ export default function Profile() {
 
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                    <span className="text-xl font-black text-gray-800">0</span>
+                    <span className="text-xl font-black text-gray-800">
+                        {reviewsLoading ? '—' : reviews.length}
+                    </span>
                 </div>
 
                 <div className="w-px h-8 bg-gray-100" />
 
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
-                    <span className="text-xl font-black text-amber-500">★ 5.0</span>
+                    <span className="text-xl font-black text-amber-500">
+                        {reviewsLoading ? '—' : avgRating ? `★ ${avgRating}` : '★ —'}
+                    </span>
                 </div>
             </div>
 
@@ -304,6 +330,52 @@ export default function Profile() {
                             {prefferedCurrency}
                         </span>
                     </div>
+                )}
+            </div>
+
+            {/* reviews section */}
+            <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-black text-gray-800">My Reviews</h2>
+                    {avgRating && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-amber-400 text-sm">★</span>
+                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
+                            <span className="text-xs text-gray-400">({reviews.length})</span>
+                        </div>
+                    )}
+                </div>
+
+                {reviewsLoading ? (
+                    <div className="flex justify-center py-6">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-CropLink-primary" />
+                    </div>
+                ) : reviews.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">No reviews yet.</p>
+                ) : (
+                    <>
+                        <div className="flex flex-col gap-2">
+                            {(showAllReviews ? reviews : reviews.slice(0, 3)).map(review => (
+                                <ReviewCard
+                                    key={review.id}
+                                    reviewerName={review.reviewer?.name || 'Anonymous'}
+                                    reviewerAvatar={review.reviewer?.profile_picture_url}
+                                    rating={review.rating}
+                                    content={review.content}
+                                    createdAt={review.created_at}
+                                />
+                            ))}
+                        </div>
+
+                        {reviews.length > 3 && (
+                            <button
+                                onClick={() => router.push('/profile/reviews')}
+                                className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
+                            >
+                                View all {reviews.length} reviews
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
 
