@@ -19,6 +19,23 @@ class TransactionCreate(BaseModel):
 
 @router.post("/transactions")
 async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends(get_current_user_id)):
+    existing = supabase.table("transaction") \
+        .select("id") \
+        .eq("listing_id", payload.listing_id) \
+        .eq("buyer_id", buyer_id) \
+        .eq("status", "pending") \
+        .execute()
+    
+    if existing.data:
+        existing_txn_id = existing.data[0]["id"]
+        existing_payment = supabase.table("payments") \
+            .select("stripe_id") \
+            .eq("transaction_id", existing_txn_id) \
+            .single().execute()
+        
+        intent = stripe.PaymentIntent.retrieve(existing_payment.data["stripe_id"])
+        return {"client_secret": intent.client_secret, "transaction_id": existing_txn_id}
+    
     listing = supabase.table("crops_listings").select("id, price, quantity, min_order_quantity, status, seller_id, currency").eq("id", payload.listing_id).single().execute()
 
     if not listing.data:
@@ -109,17 +126,23 @@ async def stripe_webhook(request: Request):
 
 @router.get("/transactions")
 async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Literal["asc", "desc"] = "desc"):
-    bought = supabase.table("transaction").select("*").eq("buyer_id", user_id).execute()
-    sold = supabase.table("transaction").select("*").eq("seller_id", user_id).execute()
+    bought = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("buyer_id", user_id).execute()
+    sold = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute()
 
     all_txns = bought.data + sold.data
-
     all_txns.sort(key=lambda x: x.get("created_at", ""), reverse=(sort == "desc"))
-    return {"transactions": all_txns}
+
+    seen = set()
+    deduped = []
+    for t in all_txns:
+        if t["id"] not in seen:
+            seen.add(t["id"])
+            deduped.append(t)
+    return {"transactions": deduped}
 
 @router.get("/transactions/{txn_id}")
 async def get_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
-    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    txn = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).single().execute()
     if not txn.data:
         raise HTTPException(status_code=404, detail="Transaction not found")
     if txn.data["buyer_id"] != user_id and txn.data["seller_id"] != user_id:
@@ -139,7 +162,12 @@ async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_use
         raise HTTPException(status_code=400, detail=f"Cannot cancel a transaction with status '{txn.data['status']}'")
     
     payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).single().execute()
-    stripe.PaymentIntent.cancel(payment.data["stripe_id"])
-    supabase.table("payments").update({"status": "cancelled"}).eq("transaction_id", txn_id).execute()
+    
+    try:
+        stripe.PaymentIntent.cancel(payment.data["stripe_id"])
+    except stripe.error.InvalidRequestError:
+        pass  # Already cancelled in Stripe, just update our DB
+    
+    supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
     return {"status": "cancelled"}
