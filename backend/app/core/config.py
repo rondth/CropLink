@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     supabase_service_role_key: str
     supabase_jwt_public_key: str
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    stripe_secret_key: str
+    stripe_webhook_secret: str
+
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()

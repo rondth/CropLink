@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, listings
+from app.api.v1 import auth, listings, transaction, reviews
+
 
 app = FastAPI(
     title="CropLink API",
@@ -18,6 +19,8 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(listings.router, prefix="/api/v1")
+app.include_router(transaction.router, prefix="/api/v1")
+app.include_router(reviews.router, prefix="/api/v1")
 
 
 @app.get("/")

@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import PriceTrendChart from '@/components/ui/PriceTrendChart';
+import { api } from '@/lib/api';
 
 export default function ProductDetails({ product, onBack, onSellerClick }: { product: any, onBack: () => void, onSellerClick?: () => void }) {
     const router = useRouter();
@@ -47,6 +47,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
     
     const [quantity, setQuantity] = useState(minOrder);
     const [isOrdering, setIsOrdering] = useState(false);
+    const [orderError, setOrderError] = useState<string | null>(null);
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
@@ -56,18 +57,20 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
             router.push('/login');
             return;
         }
-        
+
         setIsOrdering(true);
+        setOrderError(null);
         try {
-            const payload = {
+            const res = await api.post('/transactions', {
                 listing_id: product.id,
                 quantity: quantity,
-            };
-            await api.post('/transactions/', payload);
-            router.push('/orders');
-        } catch (error) {
-            console.error("Failed to create transaction:", error);
-            alert("Failed to place order. Please try again.");
+            });
+            console.log('Transaction response:', res.data);
+            const { transaction_id } = res.data;
+            console.log('Redirecting to:', `/checkout/${transaction_id}`);
+            router.push(`/checkout/${transaction_id}`);
+        } catch (err: any) {
+            setOrderError(err?.response?.data?.detail || 'Failed to place order. Please try again.');
         } finally {
             setIsOrdering(false);
         }
@@ -81,9 +84,9 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
         <div className="flex flex-col min-h-full bg-gray-50 relative pb-4">
             <div className="relative w-full h-64 bg-[#f7f5f0] shrink-0">
                 {product.photo_url ? (
-                    <Image src={product.photo_url} alt={title} fill className="object-contain" />
+                    <Image src={product.photo_url} alt={title} fill sizes="100vw" priority className="object-contain" />
                 ) : (
-                    <Image src="/crop.svg" alt={title} fill className="object-contain" />
+                    <Image src="/crop.svg" alt={title} fill sizes="100vw" priority className="object-cover" />
                 )}
                 <button onClick={onBack} className="absolute top-4 left-4 w-8 h-8 bg-black/40 text-white rounded-full flex items-center justify-center backdrop-blur-md z-10 active:scale-95 transition-transform">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -239,12 +242,18 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 </div>
                 <button 
                     onClick={handleOrder} 
-                    disabled={isOrdering || quantity < minOrder || quantity > maxQty || maxQty === 0} 
+                    disabled={quantity < minOrder || quantity > maxQty || maxQty === 0 || isOrdering} 
                     className="bg-CropLink-primary text-white font-black text-sm py-3 px-6 rounded-xl shadow-md shadow-CropLink-primary/30 active:scale-95 transition-all flex-1 ml-4 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 >
-                    {isOrdering ? 'Placing Order...' : 'Order Now'}
+                    {isOrdering ? 'Placing order...' : 'Order Now'}
                 </button>
             </div>
+
+            {orderError && (
+                <div className="mx-4 mt-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                    <p className="text-[11px] font-bold text-red-500">{orderError}</p>
+                </div>
+            )}
         </div>
     );
 }

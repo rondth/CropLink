@@ -56,3 +56,59 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+// ====== Payment API ======
+
+export interface CreateTransactionRequest {
+    listing_id: string;
+    quantity: number;
+}
+
+export interface CreateTransactionResponse {
+    client_secret: string;
+    transaction_id: string;
+}
+
+export interface Transaction {
+    id: string;
+    listing_id: string;
+    buyer_id: string;
+    seller_id: string;
+    quantity: number;
+    currency: string;
+    status: 'pending' | 'completed' | 'cancelled';
+    created_at: string;
+    payment?: {
+        status: 'pending' | 'paid' | 'failed';
+        amount: number;
+        currency: string;
+    }
+}
+
+export interface TransactionsResponse {
+    transactions: Transaction[];
+}
+
+export const createTransaction = async (
+    payload: CreateTransactionRequest
+): Promise<CreateTransactionResponse> => {
+    const response = await api.post<CreateTransactionResponse>('/transactions', payload);
+    return response.data;
+}
+
+export const getTransactions = async (
+    sort: 'asc' | 'desc' = 'desc'
+): Promise<TransactionsResponse> => {
+    const response = await api.get<TransactionsResponse>('/transactions', { params: { sort }});
+    return response.data;
+}
+
+export const getTransaction = async (txn_id: string): Promise<Transaction> => {
+    const response = await api.get<Transaction>(`/transactions/${txn_id}`);
+    return response.data;
+}
+
+export const cancelTransaction = async (txn_id: string): Promise<{ status: string }> => {
+    const response = await api.post<{ status: string }>(`/transactions/${txn_id}/cancel`);
+    return response.data;
+}
