@@ -6,6 +6,7 @@ import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
+import { useSearchParams } from 'next/navigation';
 
 interface Product {
     id: string;
@@ -21,6 +22,7 @@ export default function Home() {
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 6;
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const fetchListings = async () => {
@@ -53,6 +55,14 @@ export default function Home() {
         setSelectedCategory(category);
         setSearchFilter('');
     };
+
+    useEffect(() => {
+        const listing_id = searchParams.get('listing_id');
+        if (listing_id && products.length > 0) {
+            const product = products.find(p => p.id === listing_id);
+            if (product) setSelectedProduct(product);
+        }
+    }, [searchParams, products]);
 
     return (
         <>

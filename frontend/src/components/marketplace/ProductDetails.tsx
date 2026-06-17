@@ -61,7 +61,7 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
     }, [product.id]);
 
     const avgRating = reviews.length
-        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
         : null;
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
@@ -150,7 +150,7 @@ export default function ProductDetails({ product, onBack }: { product: any, onBa
                         ))}
                         {reviews.length > 3 && (
                             <button
-                                onClick={() => router.push(`/profile/${product.seller_id}`)}
+                                onClick={() => router.push(`/crops/${product.id}/reviews?seller_id=${product.seller_id}&listing_id=${product.id}`)}
                                 className="text-xs font-black text-CropLink-primary text-center pt-1"
                             >
                                 View all {reviews.length} reviews →
