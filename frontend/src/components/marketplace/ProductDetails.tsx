@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/lib/api';
+import PriceTrendChart from '@/components/ui/PriceTrendChart';
 
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
@@ -95,16 +96,34 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
         : null;
+    const [isOrdering, setIsOrdering] = useState(false);
+    const [orderError, setOrderError] = useState<string | null>(null);
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
 
-    const handleOrder = () => {
+    const handleOrder = async () => {
         if (!isAuthenticated) {
             router.push('/login');
             return;
         }
-        router.push(`/checkout?listing_id=${product.id}&quantity=${quantity}`);
+
+        setIsOrdering(true);
+        setOrderError(null);
+        try {
+            const res = await api.post('/transactions', {
+                listing_id: product.id,
+                quantity: quantity,
+            });
+            console.log('Transaction response:', res.data);
+            const { transaction_id } = res.data;
+            console.log('Redirecting to:', `/checkout/${transaction_id}`);
+            router.push(`/checkout/${transaction_id}`);
+        } catch (err: any) {
+            setOrderError(err?.response?.data?.detail || 'Failed to place order. Please try again.');
+        } finally {
+            setIsOrdering(false);
+        }
     };
 
     const harvestedDate = product.harvested_at
@@ -206,42 +225,61 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                     </div>
                 </div>
             </div>
-
-            {/* seller reviews */}
-            <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-black text-gray-800">Seller Reviews</h3>
-                    {avgRating && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-amber-400 text-sm">★</span>
-                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
-                            <span className="text-xs text-gray-400">({reviews.length})</span>
+            
+            {/* market price analysis */}
+            {marketPrice && (
+                <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl mx-0">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-black text-gray-800">Market Price Analysis</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.price <= marketPrice.avg_price ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {product.price <= marketPrice.avg_price ? 'Great Value' : 'Premium Price'}
+                        </span>
+                    </div>
+                    
+                    <div className="relative pt-6 pb-2 px-1">
+                        <div className="h-2 w-full bg-gray-100 rounded-full relative">
+                            {/* range highlight (Min to Max span) */}
+                            <div className="absolute h-full bg-CropLink-primary/10 rounded-full w-full"></div>
+                            
+                            {/* Average Marker */}
+                            {(() => {
+                                const range = marketPrice.max_price - marketPrice.min_price;
+                                const pos = range > 0 ? ((marketPrice.avg_price - marketPrice.min_price) / range) * 100 : 50;
+                                const clampedPos = Math.max(0, Math.min(100, pos));
+                                return (
+                                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-5 bg-gray-300 z-10" style={{ left: `${clampedPos}%` }}>
+                                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Avg</span>
+                                    </div>
+                                );
+                            })()}
+                          
+                            {/* Current Price Marker */}
+                            {(() => {
+                                const range = marketPrice.max_price - marketPrice.min_price;
+                                const pos = range > 0 ? ((product.price - marketPrice.min_price) / range) * 100 : 50;
+                                const clampedPos = Math.max(0, Math.min(100, pos));
+                                return (
+                                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 transition-all duration-500" style={{ left: `${clampedPos}%` }}>
+                                        <div className="w-4 h-4 bg-CropLink-primary border-2 border-white rounded-full shadow-md"></div>
+                                        <span className="text-[10px] font-black text-CropLink-primary mt-1 whitespace-nowrap">You</span>
+                                    </div>
+                                );
+                            })()}
                         </div>
-                    )}
-                </div>
 
-                {reviewsLoading ? (
-                    <div className="flex justify-center py-4">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-CropLink-primary" />
+                        {/* Labels */}
+                        <div className="flex justify-between mt-6">
+                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.min_price}</span></div>
+                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.max_price}</span></div>
+                        </div>
                     </div>
-                ) : reviews.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-3">No reviews yet for this seller.</p>
-                ) : (
-                    <div className="flex flex-col gap-2">
-                        {reviews.slice(0, 3).map((review) => (
-                            <ReviewCard key={review.id} review={review} />
-                        ))}
-                        {reviews.length > 3 && (
-                            <button
-                                onClick={() => router.push(`/crops/${product.id}/reviews?seller_id=${product.seller_id}&listing_id=${product.id}`)}
-                                className="text-xs font-black text-CropLink-primary text-center pt-1"
-                            >
-                                View all {reviews.length} reviews →
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {product.produce_id && (
+                <PriceTrendChart cropId={product.produce_id} currency={product.currency || 'USD'} />
+            )}
+
 
             {/* seller profile*/}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
@@ -293,6 +331,42 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                     </div>
                 )}
             </div>
+                   {/* seller reviews */}
+            <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-black text-gray-800">Seller Reviews</h3>
+                    {avgRating && (
+                        <div className="flex items-center gap-1">
+                            <span className="text-amber-400 text-sm">★</span>
+                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
+                            <span className="text-xs text-gray-400">({reviews.length})</span>
+                        </div>
+                    )}
+                </div>
+
+                {reviewsLoading ? (
+                    <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-CropLink-primary" />
+                    </div>
+                ) : reviews.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-3">No reviews yet for this seller.</p>
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        {reviews.slice(0, 3).map((review) => (
+                            <ReviewCard key={review.id} review={review} />
+                        ))}
+                        {reviews.length > 3 && (
+                            <button
+                                onClick={() => router.push(`/crops/${product.id}/reviews?seller_id=${product.seller_id}&listing_id=${product.id}`)}
+                                className="text-xs font-black text-CropLink-primary text-center pt-1"
+                            >
+                                View all {reviews.length} reviews →
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+       
             {/* action bar */}
             <div className="sticky bottom-4 mt-2 mx-4 bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.08)] z-20">
                 <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-1 border border-gray-100">
@@ -307,12 +381,18 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 </div>
                 <button
                     onClick={handleOrder}
-                    disabled={isOwnListing || quantity < minOrder || quantity > maxQty || maxQty === 0}
+                    disabled={isOwnListing || quantity < minOrder || quantity > maxQty || maxQty === 0 || isOrdering}
                     className="bg-CropLink-primary text-white font-black text-sm py-3 px-6 rounded-xl shadow-md shadow-CropLink-primary/30 active:scale-95 transition-all flex-1 ml-4 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 >
-                    Order Now
+                    {isOrdering ? 'Placing order...' : 'Order Now'}
                 </button>
             </div>
+
+            {orderError && (
+                <div className="mx-4 mt-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                    <p className="text-[11px] font-bold text-red-500">{orderError}</p>
+                </div>
+            )}
         </div>
     );
 }

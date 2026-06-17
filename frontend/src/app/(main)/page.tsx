@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
@@ -14,7 +14,7 @@ interface Product {
     [key: string]: any;
 }
 
-export default function Home() {
+function HomeContent() {
     const { role } = useRole();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState<Product[]>([]);
@@ -40,6 +40,15 @@ export default function Home() {
         };
         fetchListings();
     }, []);
+
+    useEffect(() => {
+        const listingId = searchParams.get('listing_id');
+        if (!listingId) return;
+
+        api.get(`/listings/${listingId}`)
+            .then(res => setSelectedProduct(res.data))
+            .catch(err => console.error('Failed to load listing from URL:', err));
+    }, [searchParams]);
 
     const filteredProducts = products.filter(product => {
         const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
@@ -120,5 +129,13 @@ export default function Home() {
                 <Dashboard />
             )}
         </>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense>
+            <HomeContent />
+        </Suspense>
     );
 }

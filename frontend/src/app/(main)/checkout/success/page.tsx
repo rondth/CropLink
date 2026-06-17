@@ -40,7 +40,7 @@ function SuccessContent() {
     return (
         <div className="p-5 flex flex-col items-center justify-center gap-4">
             {/* Success icon */}
-            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mt-4">
+            <div className="w-16 h-16 flex items-center justify-center mt-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                 </svg>
@@ -72,14 +72,33 @@ function SuccessContent() {
                             <span>Quantity</span>
                             <span className="font-bold text-gray-700">{transaction.quantity}</span>
                         </div>
-                        {transaction.payment && (
-                            <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
-                                <span className="font-black text-gray-800">Total Paid</span>
-                                <span className="font-black text-CropLink-primary">
-                                    {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(transaction.payment.amount / 100)}
-                                </span>
-                            </div>
-                        )}
+                        {transaction.payment && (() => {
+                            const total = transaction.payment.amount;
+                            const subtotal = Math.round((total / 1.02) * 100) / 100;
+                            const platformFee = Math.round((total - subtotal) * 100) / 100;
+                            return (
+                                <>
+                                    <div className="flex justify-between">
+                                        <span>Subtotal</span>
+                                        <span className="font-bold text-gray-700">
+                                            {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(subtotal)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Platform fee (2%)</span>
+                                        <span className="font-bold text-gray-700">
+                                            {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(platformFee)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
+                                        <span className="font-black text-gray-800">Total Paid</span>
+                                        <span className="font-black text-CropLink-primary">
+                                            {transaction.currency} {Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(total)}
+                                        </span>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
