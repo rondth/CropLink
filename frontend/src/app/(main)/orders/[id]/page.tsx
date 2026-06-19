@@ -273,8 +273,6 @@ export default function OrderDetailPage() {
     );
 }
 
-// Helper component
-
 function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
     return (
         <div className="flex justify-between items-start gap-4">

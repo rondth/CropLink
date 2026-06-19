@@ -7,12 +7,16 @@ import { Suspense } from 'react';
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
 function ReviewCard({ review }: { review: any }) {
+    const router = useRouter();
     const name = review.reviewer?.name || 'Anonymous';
     const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
     const avatarUrl = review.reviewer?.profile_picture_url;
 
     return (
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
+        <div
+            onClick={review.reviewer_id ? () => router.push(`/user/${review.reviewer_id}`) : undefined}
+            className={`bg-white rounded-2xl p-4 shadow-sm ${review.reviewer_id ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}`}
+        >
             <div className="flex items-center gap-2 mb-2">
                 {avatarUrl ? (
                     <img src={avatarUrl} alt={name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />

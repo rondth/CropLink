@@ -450,6 +450,7 @@ export default function Profile() {
                             {(showAllReviews ? reviews : reviews.slice(0, 3)).map(review => (
                                 <ReviewCard
                                     key={review.id}
+                                    reviewerId={review.reviewer_id}
                                     reviewerName={review.reviewer?.name || 'Anonymous'}
                                     reviewerAvatar={review.reviewer?.profile_picture_url}
                                     rating={review.rating}
