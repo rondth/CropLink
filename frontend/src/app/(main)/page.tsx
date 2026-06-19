@@ -1,12 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
-import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 interface Product {
@@ -41,6 +40,15 @@ function HomeContent() {
         };
         fetchListings();
     }, []);
+
+    useEffect(() => {
+        const listingId = searchParams.get('listing_id');
+        if (!listingId) return;
+
+        api.get(`/listings/${listingId}`)
+            .then(res => setSelectedProduct(res.data))
+            .catch(err => console.error('Failed to load listing from URL:', err));
+    }, [searchParams]);
 
     const filteredProducts = products.filter(product => {
         const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
