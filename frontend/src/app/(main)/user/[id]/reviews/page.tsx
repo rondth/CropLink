@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import ReviewCard from '@/components/marketplace/ReviewCard';
 
-export default function SellerReviews() {
+export default function Reviews() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [reviews, setReviews] = useState<any[]>([]);

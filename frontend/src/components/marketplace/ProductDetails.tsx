@@ -253,7 +253,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                                 onSellerClick();
                             } else {
                                 sessionStorage.setItem('pendingProduct', JSON.stringify(product));
-                                router.push(`/seller/${product.seller_id}`);
+                                router.push(`/user/${product.seller_id}`);
                             }
                         }}
                         className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-2xl active:scale-[0.98] transition-all"

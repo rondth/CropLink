@@ -84,7 +84,7 @@ function ListingReviewsPage() {
 
             <div className="px-4 pt-4">
                 <button
-                    onClick={() => router.push(`/seller/${seller_id}`)}
+                    onClick={() => router.push(`/user/${seller_id}`)}
                     className="w-full flex items-center justify-between bg-white rounded-2xl px-4 py-3 shadow-sm border border-gray-100 active:scale-[0.98] transition-transform"
                 >
                     <div className="flex items-center gap-3">

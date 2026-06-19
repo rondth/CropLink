@@ -7,10 +7,10 @@ import ProductGrid from '@/components/marketplace/ProductGrid';
 import ProductDetails from '@/components/marketplace/ProductDetails';
 import ReviewCard from '@/components/marketplace/ReviewCard';
 
-export default function SellerProfile() {
+export default function PublicProfile() {
     const params = useParams();
     const router = useRouter();
-    const sellerId = params.id as string;
+    const userId = params.id as string;
 
     const [profile, setProfile] = useState<any>(null);
     const [listings, setListings] = useState<any[]>([]);
@@ -24,14 +24,14 @@ export default function SellerProfile() {
         : null;
 
     useEffect(() => {
-        if (!sellerId) return;
+        if (!userId) return;
         Promise.all([
-            api.get(`/auth/profile/${sellerId}`),
+            api.get(`/auth/profile/${userId}`),
             api.get('/listings/'),
-            api.get(`/reviews/seller/${sellerId}`),
+            api.get(`/reviews/seller/${userId}`),
         ]).then(([profileRes, listingsRes, reviewsRes]) => {
             setProfile(profileRes.data);
-            setListings(listingsRes.data.filter((l: any) => l.seller_id === sellerId && l.status === 'active'));
+            setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
             setReviews(reviewsRes.data);
             setBio(profileRes.data.bio || '');
         }).catch(err => {
@@ -39,7 +39,7 @@ export default function SellerProfile() {
         }).finally(() => {
             setIsLoading(false);
         });
-    }, [sellerId]);
+    }, [userId]);
 
     useEffect(() => {
         const scroller = document.querySelector('.overflow-y-auto');
@@ -174,7 +174,7 @@ export default function SellerProfile() {
                         </div>
                         {reviews.length > 3 && (
                             <button
-                                onClick={() => router.push(`/seller/${sellerId}/reviews`)}
+                                onClick={() => router.push(`/user/${userId}/reviews`)}
                                 className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
                             >
                                 View all {reviews.length} reviews
