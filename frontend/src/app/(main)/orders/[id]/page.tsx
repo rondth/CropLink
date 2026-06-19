@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
+import { User } from 'lucide-react';
 
 interface Transaction {
     id: string;
@@ -10,6 +11,8 @@ interface Transaction {
     created_at: string;
     quantity: number;
     currency: string;
+    buyer_id: string;
+    seller_id: string;
     listing?: {
         id: string;
         crop_name: string;
@@ -25,8 +28,6 @@ interface Transaction {
         currency: string;
         stripe_id: string;
     };
-    seller?: { name: string; email: string; };
-    buyer?: { name: string; email: string; };
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -45,8 +46,9 @@ export default function OrderDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updating, setUpdating] = useState(false);
+    const [counterpartyProfile, setCounterpartyProfile] = useState<{ name?: string; profile_picture_url?: string } | null>(null);
 
-    const role = (user as any)?.user_metadata?.role ?? (user as any)?.role;
+    const userId = user?.user_id;
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) return;
@@ -65,6 +67,15 @@ export default function OrderDetailPage() {
 
         fetchOrder();
     }, [isAuthenticated, authLoading, transactionId]);
+
+    useEffect(() => {
+        if (!order) return;
+        const counterpartyId = order.buyer_id === userId ? order.seller_id : order.buyer_id;
+        if (!counterpartyId) return;
+        api.get(`/auth/profile/${counterpartyId}`)
+            .then(res => setCounterpartyProfile(res.data))
+            .catch(() => {});
+    }, [order, userId]);
 
     const handleCancel = async () => {
         if (!order) return;
@@ -121,8 +132,9 @@ export default function OrderDetailPage() {
 
     if (!order) return null;
 
-    const counterparty = role === 'buyer' ? order.seller : order.buyer;
-    const counterpartyLabel = role === 'buyer' ? 'Farmer / Seller' : 'Distributor / Buyer';
+    const isBuyer = order.buyer_id === userId;
+    const counterpartyId = isBuyer ? order.seller_id : order.buyer_id;
+    const counterpartyLabel = isBuyer ? 'Farmer / Seller' : 'Distributor / Buyer';
 
     return (
         <div className="p-6 max-w-lg mx-auto">
@@ -219,20 +231,30 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Counterparty info */}
-            {counterparty && (
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
-                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">
-                        {counterpartyLabel}
-                    </p>
-                    <div className="flex flex-col gap-2.5">
-                        <Row label="Name" value={counterparty.name} />
-                        <Row label="Contact" value={counterparty.email} />
+            {counterpartyId && (
+                <button
+                    onClick={() => router.push(`/user/${counterpartyId}`)}
+                    className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
+                >
+                    <div className="size-11 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        {counterpartyProfile?.profile_picture_url ? (
+                            <img src={counterpartyProfile.profile_picture_url} className="w-full h-full object-cover" alt={counterpartyProfile.name} />
+                        ) : (
+                            <User className="w-5 h-5 text-gray-300" />
+                        )}
                     </div>
-                </div>
+                    <div className="flex-1">
+                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-0.5">
+                            {counterpartyLabel}
+                        </p>
+                        <p className="text-sm font-bold text-gray-800">{counterpartyProfile?.name ?? 'View profile'}</p>
+                    </div>
+                    <span className="text-[10px] font-black text-CropLink-primary">View →</span>
+                </button>
             )}
 
             {/* Cancel order (buyer only, pending orders) */}
-            {role === 'buyer' && order.status === 'pending' && (
+            {isBuyer && order.status === 'pending' && (
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
                     <button
                         onClick={handleCancel}
@@ -244,7 +266,7 @@ export default function OrderDetailPage() {
                 </div>
             )}
 
-            {order.status === 'completed' && role === 'buyer' && (
+            {order.status === 'completed' && isBuyer && (
                 <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review-seller`)} />
             )}
         </div>
