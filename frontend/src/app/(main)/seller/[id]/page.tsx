@@ -17,6 +17,7 @@ export default function SellerProfile() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [reviews, setReviews] = useState<any[]>([]);
+    const [bio, setBio] = useState('');
 
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
@@ -32,6 +33,7 @@ export default function SellerProfile() {
             setProfile(profileRes.data);
             setListings(listingsRes.data.filter((l: any) => l.seller_id === sellerId && l.status === 'active'));
             setReviews(reviewsRes.data);
+            setBio(profileRes.data.bio || '');
         }).catch(err => {
             console.error("Failed to load seller profile:", err);
         }).finally(() => {
@@ -134,12 +136,12 @@ export default function SellerProfile() {
             </div>
 
             {/* bio */}
-            {profile.bio && (
-                <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">About</label>
-                    <p className="text-sm text-gray-700 leading-relaxed">{profile.bio}</p>
-                </div>
-            )}
+            <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">About</label>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                    {profile.bio || <span className="text-gray-400 italic">No bio yet.</span>}
+                </p>
+            </div>
 
             {/* reviews */}
             <div className="mt-5 mx-5">
