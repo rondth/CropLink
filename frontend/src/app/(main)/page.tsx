@@ -7,10 +7,12 @@ import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
 import { useSearchParams } from 'next/navigation';
+import { filterProducts } from '@/lib/utils';
 
 interface Product {
     id: string;
     category: string;
+    crop_name: string;
     [key: string]: any;
 }
 
@@ -50,11 +52,7 @@ function HomeContent() {
             .catch(err => console.error('Failed to load listing from URL:', err));
     }, [searchParams]);
 
-    const filteredProducts = products.filter(product => {
-        const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
-        const searchMatch = !searchFilter || product.crop_name.toLowerCase().includes(searchFilter.toLowerCase());
-        return categoryMatch && searchMatch;
-    });
+    const filteredProducts = filterProducts(products, selectedCategory, searchFilter);
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
