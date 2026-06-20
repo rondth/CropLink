@@ -34,7 +34,7 @@ function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: ()
                      <div className="w-40 h-40 rounded-full" style={conicGradientStyle}></div>
                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
                         <span className="text-xs text-gray-500">Revenue</span>
-                        <span className="text-lg font-black text-gray-800">${totalRevenue.toFixed(0)}</span>
+                        <span className="text-lg font-black text-gray-800">{Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(totalRevenue)}</span>
                      </div>
                 </div>
                 {/* desc */}
@@ -45,7 +45,7 @@ function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: ()
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                                 <span className="font-medium text-gray-600">{item.name}</span>
                             </div>
-                            <span className="text-gray-800">${item.price.toFixed(0)} <strong>({item.percentage}%)</strong></span>
+                            <span className="text-gray-800">{Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(item.price)} <strong>({item.percentage}%)</strong></span>
                         </div>
                     )) : (
                         <p className="text-center text-gray-500 text-xs">No revenue data for the last month.</p>
@@ -140,6 +140,7 @@ export default function Dashboard() {
     const [inventoryBreakdown, setInventoryBreakdown] = useState<{ name: string; percentage: number; color: string; }[]>([]);
     const [revenueBreakdown, setRevenueBreakdown] = useState<{ name: string; percentage: number; color: string; price: number }[]>([]);
     const [monthlyRevenue, setMonthlyRevenue] = useState({ amount: 0, change: '+0%' });
+    const [revenueCurrency, setRevenueCurrency] = useState<string | null>(null);
     const [activeOrdersCount, setActiveOrdersCount] = useState(0);
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
@@ -147,48 +148,102 @@ export default function Dashboard() {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [listingsResponse] = await Promise.all([
-                    api.get('/listings/me')
+                const [listingsResponse, transactionsResponse] = await Promise.all([
+                    api.get('/listings/me'),
+                    api.get('/transactions'),
                 ]);
 
                 const listings = listingsResponse.data;
                 setMyListings(listings);
 
-                // --- Inventory Calculation ---
-                if (listings && listings.length > 0) {
-                    const activeListings = listings.filter((l: any) => l.status === 'active');
-                    const quantityByCrop: { [key: string]: number } = {};
-                    let totalQuantity = 0;
-
-                    activeListings.forEach((listing: any) => {
-                        quantityByCrop[listing.crop_name] = (quantityByCrop[listing.crop_name] || 0) + listing.quantity;
-                        totalQuantity += listing.quantity;
-                    });
-
-                    if (totalQuantity > 0) {
-                        const colors = ['#ff6b6b', '#4ade80', '#facc15', '#74c0fc', '#a374fc', '#ff922b'];
-                        let colorIndex = 0;
-                        const breakdown = Object.entries(quantityByCrop)
-                            .map(([cropName, quantity]) => {
-                                const percentage = Math.round((quantity / totalQuantity) * 100);
-                                const color = colors[colorIndex % colors.length];
-                                colorIndex++;
-                                return { name: cropName, percentage, color };
-                            })
-                            .sort((a, b) => b.percentage - a.percentage);
-                        setInventoryBreakdown(breakdown);
-                    } else {
-                        setInventoryBreakdown([]);
-                    }
+                // inventory calculation 
+                const activeListings = listings.filter((l: any) => l.status === 'active');
+                const quantityByCrop: { [key: string]: number } = {};
+                let totalQuantity = 0;
+                activeListings.forEach((listing: any) => {
+                    const qty = parseFloat(listing.quantity);
+                    quantityByCrop[listing.crop_name] = (quantityByCrop[listing.crop_name] || 0) + qty;
+                    totalQuantity += qty;
+                });
+                if (totalQuantity > 0) {
+                    const colors = ['#ff6b6b', '#4ade80', '#facc15', '#74c0fc', '#a374fc', '#ff922b'];
+                    let colorIndex = 0;
+                    const breakdown = Object.entries(quantityByCrop)
+                        .map(([cropName, quantity]) => {
+                            const percentage = Math.max(1, Math.round((quantity / totalQuantity) * 100));
+                            const color = colors[colorIndex++ % colors.length];
+                            return { name: cropName, percentage, color };
+                        })
+                        .sort((a, b) => b.percentage - a.percentage);
+                    setInventoryBreakdown(breakdown);
                 } else {
                     setInventoryBreakdown([]);
                 }
 
-                // TODO: (Temporary data to be shown, completed later on at MS2)
-                setActiveOrdersCount(0);
-                setPendingOrdersCount(0);
-                setMonthlyRevenue({ amount: 0, change: '+0%' });
-                setRevenueBreakdown([]);
+                // revenue & order calculation
+                const allTxns: any[] = transactionsResponse.data.transactions ?? [];
+                const soldTxns = allTxns.filter((t: any) => t.seller_id === user?.user_id);
+                const completedSales = soldTxns.filter((t: any) => t.status === 'completed');
+                const pendingSales = soldTxns.filter((t: any) => t.status === 'pending');
+
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const thisYear = now.getFullYear();
+                const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+                const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+
+                const subtotal = (t: any) => parseFloat(t.quantity ?? '0') * parseFloat(t.listing?.price ?? '0');
+
+                const thisMonthSales = completedSales.filter((t: any) => {
+                    const d = new Date(t.created_at);
+                    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+                });
+                const lastMonthSales = completedSales.filter((t: any) => {
+                    const d = new Date(t.created_at);
+                    return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+                });
+
+                const thisMonthTotal = thisMonthSales.reduce((sum: number, t: any) => sum + subtotal(t), 0);
+                const lastMonthTotal = lastMonthSales.reduce((sum: number, t: any) => sum + subtotal(t), 0);
+
+                let changeStr = '+0%';
+                if (lastMonthTotal > 0) {
+                    const pct = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+                    changeStr = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%`;
+                } else if (thisMonthTotal > 0) {
+                    changeStr = '+100%';
+                }
+
+                setMonthlyRevenue({ amount: thisMonthTotal, change: changeStr });
+                setActiveOrdersCount(completedSales.length);
+                setPendingOrdersCount(pendingSales.length);
+
+                // Revenue breakdown by crop (this month, grouped by currency)
+                const colors = ['#ff6b6b', '#4ade80', '#facc15', '#74c0fc', '#a374fc', '#ff922b'];
+                const revByCrop: { [key: string]: { amount: number; currency: string } } = {};
+                thisMonthSales.forEach((t: any) => {
+                    const name = t.listing?.crop_name ?? 'Unknown';
+                    const currency = t.currency ?? 'USD';
+                    if (!revByCrop[name]) revByCrop[name] = { amount: 0, currency };
+                    revByCrop[name].amount += subtotal(t);
+                });
+                const currencies = [...new Set(thisMonthSales.map((t: any) => t.currency ?? 'USD'))];
+                setRevenueCurrency(currencies.length === 1 ? currencies[0] : null);
+                const totalRev = Object.values(revByCrop).reduce((s, v) => s + v.amount, 0);
+                if (totalRev > 0) {
+                    let ci = 0;
+                    const breakdown = Object.entries(revByCrop)
+                        .map(([name, { amount }]) => ({
+                            name,
+                            percentage: Math.round((amount / totalRev) * 100),
+                            color: colors[ci++ % colors.length],
+                            price: amount,
+                        }))
+                        .sort((a, b) => b.price - a.price);
+                    setRevenueBreakdown(breakdown);
+                } else {
+                    setRevenueBreakdown([]);
+                }
 
             } catch (err) {
                 console.error("Failed to load dashboard data", err);
@@ -197,7 +252,7 @@ export default function Dashboard() {
             }
         };
         fetchData();
-    }, []);
+    }, [user?.user_id]);
 
     const activeMyListings = myListings.filter(listing => listing.status === 'active');
 
@@ -254,7 +309,13 @@ export default function Dashboard() {
                 {/* button to pie chart */}
                 <button onClick={() => setShowRevenueDetails(true)} className="bg-CropLink-primary rounded-2xl p-4 text-white shadow-sm flex flex-col justify-between text-left active:scale-[0.98] transition-transform disabled:opacity-70" disabled={isLoading}>
                     <p className="text-[10px] font-semibold opacity-80 mb-1">Monthly Revenue</p>
-                    <h3 className="text-xl font-black mb-2">${monthlyRevenue.amount.toFixed(2)}</h3>
+                    <h3 className="text-xl font-black mb-2">
+                        {revenueCurrency ? `${revenueCurrency} ` : ''}
+                        {monthlyRevenue.amount > 0
+                            ? Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(monthlyRevenue.amount)
+                            : '0.00'}
+                        {!revenueCurrency && monthlyRevenue.amount > 0 && <span className="text-[10px] font-medium opacity-70 ml-1">mixed</span>}
+                    </h3>
                     <span className="text-[9px] font-bold bg-white/20 inline-flex items-center px-1.5 py-1 rounded-md self-start">
                         {monthlyRevenue.change} vs last month
                     </span>

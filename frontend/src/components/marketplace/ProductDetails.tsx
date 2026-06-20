@@ -86,19 +86,26 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
     const maxQty = product.quantity ?? 0;
 
     const [quantity, setQuantity] = useState(minOrder);
-    const [reviews, setReviews] = useState<any[]>([]);
+    const [sellerReviews, setSellerReviews] = useState<any[]>([]);
+    const [listingReviews, setListingReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
 
     useEffect(() => {
         if (!product.seller_id) return;
-        api.get(`/reviews/listing/${product.id}`)
-            .then(res => setReviews(res.data))
+        Promise.all([
+            api.get(`/reviews/seller/${product.seller_id}`),
+            api.get(`/reviews/listing/${product.id}`),
+        ])
+            .then(([sellerRes, listingRes]) => {
+                setSellerReviews(sellerRes.data);
+                setListingReviews(listingRes.data);
+            })
             .catch(() => {})
             .finally(() => setReviewsLoading(false));
-    }, [product.id]);
+    }, [product.id, product.seller_id]);
 
-    const avgRating = reviews.length
-        ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
+    const avgRating = sellerReviews.length
+        ? (sellerReviews.reduce((sum, r) => sum + r.rating, 0) / sellerReviews.length).toFixed(2)
         : null;
     const [isOrdering, setIsOrdering] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
@@ -268,7 +275,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                                 </span>
                                 <span className="text-gray-300 mx-1">•</span>
                                 <span className="font-medium">
-                                    {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+                                    {sellerReviews.length} {sellerReviews.length === 1 ? 'review' : 'reviews'}
                                 </span>
                             </p>
                         </div>
@@ -287,12 +294,14 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                    {/* seller reviews */}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-black text-gray-800">Seller Reviews</h3>
-                    {avgRating && (
+                    <h3 className="text-sm font-black text-gray-800">Listing Reviews</h3>
+                    {listingReviews.length > 0 && (
                         <div className="flex items-center gap-1">
                             <span className="text-amber-400 text-sm">★</span>
-                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
-                            <span className="text-xs text-gray-400">({reviews.length})</span>
+                            <span className="text-sm font-black text-gray-800">
+                                {(listingReviews.reduce((sum, r) => sum + r.rating, 0) / listingReviews.length).toFixed(2)}
+                            </span>
+                            <span className="text-xs text-gray-400">({listingReviews.length})</span>
                         </div>
                     )}
                 </div>
@@ -301,19 +310,19 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                     <div className="flex justify-center py-4">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-CropLink-primary" />
                     </div>
-                ) : reviews.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-3">No reviews yet for this seller.</p>
+                ) : listingReviews.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-3">No reviews yet for this listing.</p>
                 ) : (
                     <div className="flex flex-col gap-2">
-                        {reviews.slice(0, 3).map((review) => (
+                        {listingReviews.slice(0, 3).map((review: any) => (
                             <ReviewCard key={review.id} review={review} />
                         ))}
-                        {reviews.length > 3 && (
+                        {listingReviews.length > 3 && (
                             <button
                                 onClick={() => router.push(`/crops/${product.id}/reviews?seller_id=${product.seller_id}&listing_id=${product.id}`)}
                                 className="text-xs font-black text-CropLink-primary text-center pt-1"
                             >
-                                View all {reviews.length} reviews →
+                                View all {listingReviews.length} reviews →
                             </button>
                         )}
                     </div>

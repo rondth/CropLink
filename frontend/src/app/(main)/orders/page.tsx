@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { useRole } from '@/components/layout/RoleContext';
 import { useRouter } from 'next/navigation';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -17,6 +18,7 @@ type Filter = typeof FILTERS[number];
 
 export default function OrdersPage() {
     const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+    const { role } = useRole();
     const router = useRouter();
     const [orders, setOrders] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +32,7 @@ export default function OrdersPage() {
         if (!authLoading && !isAuthenticated) return;
         const fetchData = async () => {
             try {
-                const ordersRes = await api.get('/transactions');
+                const ordersRes = await api.get('/transactions', { params: { role } });
                 setOrders(ordersRes.data.transactions ?? []);
                 api.get('/reviews/mine')
                     .then(r => setReviewedIds(new Set(r.data)))

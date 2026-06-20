@@ -76,13 +76,6 @@ function HomeContent() {
         setSearchFilter('');
     };
 
-    useEffect(() => {
-        const listing_id = searchParams.get('listing_id');
-        if (listing_id && products.length > 0) {
-            const product = products.find(p => p.id === listing_id);
-            if (product) setSelectedProduct(product);
-        }
-    }, [searchParams, products]);
 
     return (
         <>
