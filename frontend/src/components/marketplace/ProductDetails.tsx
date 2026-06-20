@@ -204,11 +204,15 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
 
                         {/* Labels */}
                         <div className="flex justify-between mt-6">
-                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.min_price}</span></div>
-                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.max_price}</span></div>
+                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {Intl.NumberFormat('en-US').format(marketPrice.min_price)}</span></div>
+                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {Intl.NumberFormat('en-US').format(marketPrice.max_price)}</span></div>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {product.produce_id && (
+                <PriceTrendChart cropId={product.produce_id} currency={product.currency || 'USD'} />
             )}
 
             {/* product description */}
@@ -229,61 +233,6 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                     </div>
                 </div>
             </div>
-            
-            {/* market price analysis */}
-            {marketPrice && (
-                <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl mx-0">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-sm font-black text-gray-800">Market Price Analysis</h3>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${product.price <= marketPrice.avg_price ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {product.price <= marketPrice.avg_price ? 'Great Value' : 'Premium Price'}
-                        </span>
-                    </div>
-                    
-                    <div className="relative pt-6 pb-2 px-1">
-                        <div className="h-2 w-full bg-gray-100 rounded-full relative">
-                            {/* range highlight (Min to Max span) */}
-                            <div className="absolute h-full bg-CropLink-primary/10 rounded-full w-full"></div>
-                            
-                            {/* Average Marker */}
-                            {(() => {
-                                const range = marketPrice.max_price - marketPrice.min_price;
-                                const pos = range > 0 ? ((marketPrice.avg_price - marketPrice.min_price) / range) * 100 : 50;
-                                const clampedPos = Math.max(0, Math.min(100, pos));
-                                return (
-                                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-5 bg-gray-300 z-10" style={{ left: `${clampedPos}%` }}>
-                                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Avg</span>
-                                    </div>
-                                );
-                            })()}
-                          
-                            {/* Current Price Marker */}
-                            {(() => {
-                                const range = marketPrice.max_price - marketPrice.min_price;
-                                const pos = range > 0 ? ((product.price - marketPrice.min_price) / range) * 100 : 50;
-                                const clampedPos = Math.max(0, Math.min(100, pos));
-                                return (
-                                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 transition-all duration-500" style={{ left: `${clampedPos}%` }}>
-                                        <div className="w-4 h-4 bg-CropLink-primary border-2 border-white rounded-full shadow-md"></div>
-                                        <span className="text-[10px] font-black text-CropLink-primary mt-1 whitespace-nowrap">You</span>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-
-                        {/* Labels */}
-                        <div className="flex justify-between mt-6">
-                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.min_price}</span></div>
-                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.max_price}</span></div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {product.produce_id && (
-                <PriceTrendChart cropId={product.produce_id} currency={product.currency || 'USD'} />
-            )}
-
 
             {/* seller profile*/}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
