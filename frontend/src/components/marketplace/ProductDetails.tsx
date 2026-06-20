@@ -9,12 +9,16 @@ import PriceTrendChart from '@/components/ui/PriceTrendChart';
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
 function ReviewCard({ review }: { review: any }) {
+    const router = useRouter();
     const name = review.reviewer?.name || 'Anonymous';
     const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
     const avatarUrl = review.reviewer?.profile_picture_url;
 
     return (
-        <div className="bg-gray-50 rounded-2xl p-3">
+        <div
+            onClick={review.reviewer_id ? () => router.push(`/user/${review.reviewer_id}`) : undefined}
+            className={`bg-gray-50 rounded-2xl p-3 ${review.reviewer_id ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}`}
+        >
             <div className="flex items-center gap-2 mb-2">
                 {avatarUrl ? (
                     <img src={avatarUrl} alt={name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
@@ -207,11 +211,15 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
 
                         {/* Labels */}
                         <div className="flex justify-between mt-6">
-                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.min_price}</span></div>
-                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {marketPrice.max_price}</span></div>
+                            <div className="flex flex-col"><span className="text-[8px] font-bold text-gray-400 uppercase">Min</span><span className="text-xs font-black text-gray-700">{product.currency} {Intl.NumberFormat('en-US').format(marketPrice.min_price)}</span></div>
+                            <div className="flex flex-col text-right"><span className="text-[8px] font-bold text-gray-400 uppercase">Max</span><span className="text-xs font-black text-gray-700">{product.currency} {Intl.NumberFormat('en-US').format(marketPrice.max_price)}</span></div>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {product.produce_id && (
+                <PriceTrendChart cropId={product.produce_id} currency={product.currency || 'USD'} />
             )}
 
             {/* product description */}
@@ -232,11 +240,6 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                     </div>
                 </div>
             </div>
-            
-            {product.produce_id && (
-                <PriceTrendChart cropId={product.produce_id} currency={product.currency || 'USD'} />
-            )}
-
 
             {/* seller profile*/}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-3xl">
@@ -248,7 +251,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                                 onSellerClick();
                             } else {
                                 sessionStorage.setItem('pendingProduct', JSON.stringify(product));
-                                router.push(`/seller/${product.seller_id}`);
+                                router.push(`/user/${product.seller_id}`);
                             }
                         }}
                         className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-2xl active:scale-[0.98] transition-all"

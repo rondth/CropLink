@@ -24,6 +24,7 @@ export default function OrdersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<Filter>('all');
     const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+    const [counterpartyProfiles, setCounterpartyProfiles] = useState<Record<string, { name?: string; profile_picture_url?: string }>>({});
 
     const userId = user?.user_id;
 
@@ -45,6 +46,24 @@ export default function OrdersPage() {
         };
         fetchData();
     }, [isAuthenticated, authLoading]);
+
+    useEffect(() => {
+        if (!orders.length || !userId) return;
+        const ids = Array.from(new Set(
+            orders.map(o => (o.buyer_id === userId ? o.seller_id : o.buyer_id))
+        )).filter(id => id && !counterpartyProfiles[id]);
+        if (!ids.length) return;
+
+        Promise.all(ids.map(id =>
+            api.get(`/auth/profile/${id}`).then(res => [id, res.data] as const).catch(() => [id, null] as const)
+        )).then(results => {
+            setCounterpartyProfiles(prev => {
+                const next = { ...prev };
+                results.forEach(([id, data]) => { if (data) next[id] = data; });
+                return next;
+            });
+        });
+    }, [orders, userId]);
 
     const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
 
@@ -118,6 +137,9 @@ export default function OrdersPage() {
                         const canReview = order.status === 'completed' && isBuyer;
                         const canReviewBuyer = order.status === 'completed' && isSeller;
                         const reviewed = reviewedIds.has(order.id);
+                        const counterpartyId = isBuyer ? order.seller_id : order.buyer_id;
+                        const counterpartyProfile = counterpartyId ? counterpartyProfiles[counterpartyId] : null;
+                        const counterpartyLabel = isBuyer ? 'Seller' : 'Buyer';
 
                         return (
                             <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -152,6 +174,28 @@ export default function OrdersPage() {
                                         </div>
                                     </div>
                                 </button>
+
+                                {counterpartyId && (
+                                    <button
+                                        onClick={() => router.push(`/user/${counterpartyId}`)}
+                                        className="w-full border-t border-gray-50 px-4 py-2.5 flex items-center gap-2.5 active:bg-gray-50 transition-colors"
+                                    >
+                                        <div className="size-6 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                            {counterpartyProfile?.profile_picture_url ? (
+                                                <img src={counterpartyProfile.profile_picture_url} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                                <span className="text-[9px] font-black text-gray-400">
+                                                    {(counterpartyProfile?.name || '?')[0]?.toUpperCase()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="text-[11px] text-gray-400">{counterpartyLabel}:</span>
+                                        <span className="text-[11px] font-bold text-gray-700 flex-1 text-left truncate">
+                                            {counterpartyProfile?.name ?? '...'}
+                                        </span>
+                                        <span className="text-[10px] font-black text-CropLink-primary flex-shrink-0">View →</span>
+                                    </button>
+                                )}
 
                                 {canReview && (
                                     <div className="border-t border-gray-50 px-4 py-2.5 flex items-center justify-between">

@@ -1,6 +1,8 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ReviewCardProps {
+    reviewerId?: string;
     reviewerName: string;
     reviewerAvatar?: string;
     rating: number;
@@ -10,9 +12,14 @@ interface ReviewCardProps {
 
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
-export default function ReviewCard({ reviewerName, reviewerAvatar, rating, content, createdAt }: ReviewCardProps) {
+export default function ReviewCard({ reviewerId, reviewerName, reviewerAvatar, rating, content, createdAt }: ReviewCardProps) {
+    const router = useRouter();
+
     return (
-        <div className="bg-white rounded-xl px-3 py-2.5 shadow-sm border border-gray-100">
+        <div
+            onClick={reviewerId ? () => router.push(`/user/${reviewerId}`) : undefined}
+            className={`bg-white rounded-xl px-3 py-2.5 shadow-sm border border-gray-100 ${reviewerId ? 'cursor-pointer active:scale-[0.98] transition-transform' : ''}`}
+        >
             <div className="flex items-center gap-2">
                 {reviewerAvatar ? (
                     <img src={reviewerAvatar} alt={reviewerName} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />

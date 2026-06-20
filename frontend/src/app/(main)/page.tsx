@@ -67,7 +67,6 @@ function HomeContent() {
         }
     }, [selectedProduct]);
 
-    // resets to page 1 when category or search filter changes
     useEffect(() => {
         setCurrentPage(1);
     }, [selectedCategory, searchFilter]);
@@ -127,7 +126,7 @@ function HomeContent() {
 
 export default function Home() {
     return (
-        <Suspense>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#faf8f5]"><p className="text-sm font-bold text-gray-400">Loading...</p></div>}>
             <HomeContent />
         </Suspense>
     );

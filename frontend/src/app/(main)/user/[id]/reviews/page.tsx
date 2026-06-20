@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import ReviewCard from '@/components/marketplace/ReviewCard';
 
-export default function SellerReviews() {
+export default function Reviews() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [reviews, setReviews] = useState<any[]>([]);
@@ -57,6 +57,7 @@ export default function SellerReviews() {
                     reviews.map(review => (
                         <ReviewCard
                             key={review.id}
+                            reviewerId={review.reviewer_id}
                             reviewerName={review.reviewer?.name || 'Anonymous'}
                             reviewerAvatar={review.reviewer?.profile_picture_url}
                             rating={review.rating}

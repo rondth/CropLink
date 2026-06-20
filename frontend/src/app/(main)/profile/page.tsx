@@ -32,6 +32,7 @@ export default function Profile() {
     const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
     const imgRef = useRef<HTMLImageElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [bio, setBio] = useState('');
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -39,6 +40,7 @@ export default function Profile() {
                 setName(res.data.name || '');
                 setAvatarUrl(res.data.profile_picture_url || null);
                 setprefferedCurrency(res.data.preffered_currency || 'USD');
+                setBio(res.data.bio || '');
                 setNumListings(res.data.num_listings || 0);
                 setProfileLoading(false);
             }).catch(() => {
@@ -175,7 +177,7 @@ export default function Profile() {
                 }
             }
 
-            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preffered_currency: prefferedCurrency });
+            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preffered_currency: prefferedCurrency, bio });
 
             setAvatarUrl(finalAvatarUrl);
             setIsEditing(false);
@@ -198,6 +200,7 @@ export default function Profile() {
             setName(res.data.name || '');
             setAvatarUrl(res.data.profile_picture_url || null);
             setprefferedCurrency(res.data.preffered_currency || 'USD');
+            setBio(res.data.bio || '');
         });
     };
 
@@ -401,6 +404,27 @@ export default function Profile() {
                 )}
             </div>
 
+            {/* bio */}
+            <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                    About
+                </label>
+                {isEditing ? (
+                    <textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        rows={3}
+                        maxLength={300}
+                        placeholder="Tell buyers a bit about yourself or your farm..."
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-2.5 outline-none focus:border-CropLink-primary transition-colors resize-none"
+                    />
+                ) : (
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                        {bio || <span className="text-gray-400 italic">No bio yet.</span>}
+                    </p>
+                )}
+            </div>
+
             {/* reviews section */}
             <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
@@ -426,6 +450,7 @@ export default function Profile() {
                             {(showAllReviews ? reviews : reviews.slice(0, 3)).map(review => (
                                 <ReviewCard
                                     key={review.id}
+                                    reviewerId={review.reviewer_id}
                                     reviewerName={review.reviewer?.name || 'Anonymous'}
                                     reviewerAvatar={review.reviewer?.profile_picture_url}
                                     rating={review.rating}

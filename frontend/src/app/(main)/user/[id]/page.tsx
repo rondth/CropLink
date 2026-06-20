@@ -7,37 +7,39 @@ import ProductGrid from '@/components/marketplace/ProductGrid';
 import ProductDetails from '@/components/marketplace/ProductDetails';
 import ReviewCard from '@/components/marketplace/ReviewCard';
 
-export default function SellerProfile() {
+export default function PublicProfile() {
     const params = useParams();
     const router = useRouter();
-    const sellerId = params.id as string;
+    const userId = params.id as string;
 
     const [profile, setProfile] = useState<any>(null);
     const [listings, setListings] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [reviews, setReviews] = useState<any[]>([]);
+    const [bio, setBio] = useState('');
 
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
         : null;
 
     useEffect(() => {
-        if (!sellerId) return;
+        if (!userId) return;
         Promise.all([
-            api.get(`/auth/profile/${sellerId}`),
+            api.get(`/auth/profile/${userId}`),
             api.get('/listings/'),
-            api.get(`/reviews/seller/${sellerId}`),
+            api.get(`/reviews/seller/${userId}`),
         ]).then(([profileRes, listingsRes, reviewsRes]) => {
             setProfile(profileRes.data);
-            setListings(listingsRes.data.filter((l: any) => l.seller_id === sellerId && l.status === 'active'));
+            setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
             setReviews(reviewsRes.data);
+            setBio(profileRes.data.bio || '');
         }).catch(err => {
             console.error("Failed to load seller profile:", err);
         }).finally(() => {
             setIsLoading(false);
         });
-    }, [sellerId]);
+    }, [userId]);
 
     useEffect(() => {
         const scroller = document.querySelector('.overflow-y-auto');
@@ -134,12 +136,12 @@ export default function SellerProfile() {
             </div>
 
             {/* bio */}
-            {profile.bio && (
-                <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">About</label>
-                    <p className="text-sm text-gray-700 leading-relaxed">{profile.bio}</p>
-                </div>
-            )}
+            <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">About</label>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                    {profile.bio || <span className="text-gray-400 italic">No bio yet.</span>}
+                </p>
+            </div>
 
             {/* reviews */}
             <div className="mt-5 mx-5">
@@ -162,6 +164,7 @@ export default function SellerProfile() {
                             {reviews.slice(0, 3).map(review => (
                                 <ReviewCard
                                     key={review.id}
+                                    reviewerId={review.reviewer_id}
                                     reviewerName={review.reviewer?.name || 'Anonymous'}
                                     reviewerAvatar={review.reviewer?.profile_picture_url}
                                     rating={review.rating}
@@ -172,7 +175,7 @@ export default function SellerProfile() {
                         </div>
                         {reviews.length > 3 && (
                             <button
-                                onClick={() => router.push(`/seller/${sellerId}/reviews`)}
+                                onClick={() => router.push(`/user/${userId}/reviews`)}
                                 className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
                             >
                                 View all {reviews.length} reviews
