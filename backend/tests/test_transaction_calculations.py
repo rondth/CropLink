@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.utils import PLATFORM_FEE_RATE, calculate_subtotal, calculate_platform_fee, calculate_total
+from app.utils import calculate_subtotal, calculate_platform_fee, calculate_total
 
 
 class TestSubtotal:
