@@ -10,7 +10,7 @@
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:buyer": "playwright test --project=buyer",
-        "test:e2e:seller": "playwright test --project=seller"
+        "test:e2e:seller": "playwright test --project=seller",
         "test": "vitest run"
     },
     "dependencies": {
