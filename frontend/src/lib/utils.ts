@@ -7,6 +7,9 @@ export function getCurrencySymbol(currency?: string): string {
         case 'BAHT':
         case 'THB': return '฿';
         case 'SGD': return 'S$';
+        case 'MMK': return 'K';
+        case 'LAK': return '₭';
+        case 'PHP': return '₱';
         case 'USD':
         default: return '$';
     }

@@ -15,6 +15,9 @@ describe('getCurrencySymbol', () => {
     it('returns ฿ for THB', () => expect(getCurrencySymbol('THB')).toBe('฿'));
     it('returns ฿ for BAHT', () => expect(getCurrencySymbol('BAHT')).toBe('฿'));
     it('returns S$ for SGD', () => expect(getCurrencySymbol('SGD')).toBe('S$'));
+    it('returns K for MMK', () => expect(getCurrencySymbol('MMK')).toBe('K'));
+    it('returns ₭ for LAK', () => expect(getCurrencySymbol('LAK')).toBe('₭'));
+    it('returns ₱ for PHP', () => expect(getCurrencySymbol('PHP')).toBe('₱'));
     it('is case-insensitive', () => expect(getCurrencySymbol('eur')).toBe('€'));
 });
 
