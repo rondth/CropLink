@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { getCurrencySymbol, calcSubtotal } from '@/lib/utils';
 
 {/* monthly revenue breakdown */}
 function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: () => void, revenueBreakdown: { name: string; percentage: number; color: string; price: number }[], totalRevenue: number }) {
@@ -192,7 +193,7 @@ export default function Dashboard() {
                 const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
                 const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
 
-                const subtotal = (t: any) => parseFloat(t.quantity ?? '0') * parseFloat(t.listing?.price ?? '0');
+                const subtotal = calcSubtotal;
 
                 const thisMonthSales = completedSales.filter((t: any) => {
                     const d = new Date(t.created_at);
@@ -270,18 +271,6 @@ export default function Dashboard() {
                 console.error('Failed to delete listing:', error);
                 alert('Could not delete the listing. Please try again.');
             }
-        }
-    };
-
-    const getCurrencySymbol = (currency?: string) => {
-        switch (currency?.toUpperCase()) {
-            case 'EUR': return '€';
-            case 'IDR': return 'Rp ';
-            case 'BAHT':
-            case 'THB': return '฿';
-            case 'SGD': return 'S$';
-            case 'USD':
-            default: return '$';
         }
     };
 
