@@ -4,13 +4,13 @@ from supabase import create_client
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
+from app.utils import calculate_total, sort_and_deduplicate
 from typing import Literal
 import stripe
 
 load_dotenv()
 
 router = APIRouter()
-PLATFORM_FEE_RATE = 0.02 # 2%
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
@@ -60,9 +60,7 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
 
     listing_currency = listing.data.get("currency") or "USD"
-    subtotal = listing.data["price"] * payload.quantity
-    platform_fee = round(subtotal * PLATFORM_FEE_RATE, 2)
-    total = round(subtotal + platform_fee, 2)
+    total = calculate_total(listing.data["price"], payload.quantity)
 
     txn = supabase.table("transaction").insert({
         "listing_id": payload.listing_id,
@@ -156,15 +154,7 @@ async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Li
         sold = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute()
         rows = bought.data + sold.data
 
-    rows.sort(key=lambda x: x.get("created_at", ""), reverse=(sort == "desc"))
-
-    seen = set()
-    deduped = []
-    for t in rows:
-        if t["id"] not in seen:
-            seen.add(t["id"])
-            deduped.append(t)
-    return {"transactions": deduped}
+    return {"transactions": sort_and_deduplicate(rows, sort)}
 
 @router.get("/transactions/{txn_id}")
 async def get_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
@@ -221,8 +211,7 @@ async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user
     if intent.status not in reusable:
         listing = supabase.table("crops_listings").select("price, currency").eq("id", txn.data["listing_id"]).single().execute()
         listing_currency = (listing.data.get("currency") or "USD").lower()
-        subtotal = listing.data["price"] * txn.data["quantity"]
-        new_total = round(subtotal * (1 + PLATFORM_FEE_RATE), 2)
+        new_total = calculate_total(listing.data["price"], txn.data["quantity"])
         intent = stripe.PaymentIntent.create(
             amount=int(new_total * 100),
             currency=listing_currency,
@@ -256,9 +245,7 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
     if payload.quantity > listing.data["quantity"]:
         raise HTTPException(status_code=400, detail="Requested quantity exceeds available stock")
 
-    subtotal = listing.data["price"] * payload.quantity
-    platform_fee = round(subtotal * PLATFORM_FEE_RATE, 2)
-    new_total = round(subtotal + platform_fee, 2)
+    new_total = calculate_total(listing.data["price"], payload.quantity)
 
     payment_res = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).execute()
     if payment_res.data:
