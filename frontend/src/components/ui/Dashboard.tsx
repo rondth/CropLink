@@ -6,6 +6,35 @@ import { useAuth } from '@/lib/AuthContext';
 import { getCurrencySymbol, calcSubtotal, formatAmount } from '@/lib/utils';
 
 {/* monthly revenue breakdown */}
+function ConfirmDeleteModal({ listingName, onConfirm, onCancel }: { listingName: string; onConfirm: () => void; onCancel: () => void }) {
+    return (
+        <div className="absolute inset-0 bg-black/40 z-50 flex items-end justify-center pb-8 px-4">
+            <div className="bg-white rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                    <h3 className="text-base font-black text-gray-800">Delete listing?</h3>
+                    <p className="text-sm text-gray-500">
+                        <span className="font-semibold text-gray-700">"{listingName}"</span> will be permanently removed. This cannot be undone.
+                    </p>
+                </div>
+                <div className="flex gap-3">
+                    <button
+                        onClick={onCancel}
+                        className="flex-1 py-3 rounded-2xl border border-gray-200 text-sm font-bold text-gray-600 active:scale-95 transition-transform"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="flex-1 py-3 rounded-2xl bg-red-500 text-sm font-bold text-white active:scale-95 transition-transform"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: () => void, revenueBreakdown: { name: string; percentage: number; color: string; price: number }[], totalRevenue: number }) {
     let cumulativePercentage = 0;
     
@@ -58,9 +87,31 @@ function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: ()
 }
 
 {/* all listings */}
-function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }: { myListings: any[], onBack: () => void, getCurrencySymbol: (currency?: string) => string, onEdit: (id: string) => void, onRemove: (id: string, name: string) => void }) {
+function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove, deleteModal, onConfirmDelete, onCancelDelete }: { 
+    myListings: any[], 
+    onBack: () => void, 
+    getCurrencySymbol: (currency?: string) => string, 
+    onEdit: (id: string) => void, 
+    onRemove: (id: string, name: string) => void,
+    deleteModal: { id: string; name: string } | null,
+    onConfirmDelete: () => void,
+    onCancelDelete: () => void
+}) {
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
+    useEffect(() => {
+        if (deleteModal) {
+            document.getElementById('main-scroller')?.scrollTo({
+                top: document.getElementById('main-scroller')?.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }, [deleteModal]);
+
     return (
-        <div className="p-4 pb-8 flex flex-col gap-1">
+        <div className="relative p-4 pb-8 flex flex-col gap-1">
             <div className="px-1">
                 <button onClick={onBack} className="text-CropLink-primary font-bold text-sm flex items-center gap-1 active:scale-95 transition-transform">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -125,6 +176,20 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove }
                 )}
             </div>
             
+            {deleteModal && (
+                <div className="mt-4 bg-white rounded-3xl p-6 flex flex-col gap-4 border border-gray-100 shadow-sm">
+                    <div className="flex flex-col gap-1">
+                        <h3 className="text-base font-black text-gray-800">Delete listing?</h3>
+                        <p className="text-sm text-gray-500">
+                            <span className="font-semibold text-gray-700">"{deleteModal.name}"</span> will be permanently removed. This cannot be undone.
+                        </p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={onCancelDelete} className="flex-1 py-3 rounded-2xl border border-gray-200 text-sm font-bold text-gray-600">Cancel</button>
+                        <button onClick={onConfirmDelete} className="flex-1 py-3 rounded-2xl bg-red-500 text-sm font-bold text-white">Delete</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -144,6 +209,7 @@ export default function Dashboard() {
     const [revenueCurrency, setRevenueCurrency] = useState<string | null>(null);
     const [activeOrdersCount, setActiveOrdersCount] = useState(0);
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+    const [deleteModal, setDeleteModal] = useState<{ id: string; name: string } | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -256,6 +322,31 @@ export default function Dashboard() {
         fetchData();
     }, [user?.user_id]);
 
+    useEffect(() => {
+        const activeListings = myListings.filter((l: any) => l.status === 'active');
+        const quantityByCrop: { [key: string]: number } = {};
+        let totalQuantity = 0;
+        activeListings.forEach((listing: any) => {
+            const qty = parseFloat(listing.quantity);
+            quantityByCrop[listing.crop_name] = (quantityByCrop[listing.crop_name] || 0) + qty;
+            totalQuantity += qty;
+        });
+        if (totalQuantity > 0) {
+            const colors = ['#ff6b6b', '#4ade80', '#facc15', '#74c0fc', '#a374fc', '#ff922b'];
+            let colorIndex = 0;
+            const breakdown = Object.entries(quantityByCrop)
+                .map(([cropName, quantity]) => {
+                    const percentage = Math.max(1, Math.round((quantity / totalQuantity) * 100));
+                    const color = colors[colorIndex++ % colors.length];
+                    return { name: cropName, percentage, color };
+                })
+                .sort((a, b) => b.percentage - a.percentage);
+            setInventoryBreakdown(breakdown);
+        } else {
+            setInventoryBreakdown([]);
+        }
+    }, [myListings]);
+
     const activeMyListings = myListings.filter(listing => listing.status === 'active');
     const { display, suffix } = formatAmount(monthlyRevenue.amount);
 
@@ -264,15 +355,18 @@ export default function Dashboard() {
     };
 
     const handleRemove = async (listingId: string, listingName: string) => {
-        if (window.confirm(`Are you sure you want to delete "${listingName}"? This action cannot be undone.`)) {
-            try {
-                await api.delete(`/listings/${listingId}`);
-                setMyListings(prevListings => prevListings.filter(l => l.id !== listingId));
-                alert('Listing deleted successfully.');
-            } catch (error) {
-                console.error('Failed to delete listing:', error);
-                alert('Could not delete the listing. Please try again.');
-            }
+        setDeleteModal({ id: listingId, name: listingName });
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteModal) return;
+        try {
+            await api.delete(`/listings/${deleteModal.id}`);
+            setMyListings(prev => prev.filter(l => l.id !== deleteModal.id));
+            setDeleteModal(null);
+        } catch (error) {
+            console.error('Failed to delete listing:', error);
+            setDeleteModal(null);
         }
     };
 
@@ -285,11 +379,22 @@ export default function Dashboard() {
     }
 
     if (showAllListings) {
-        return <AllListings myListings={myListings} onBack={() => setShowAllListings(false)} getCurrencySymbol={getCurrencySymbol} onEdit={handleEdit} onRemove={handleRemove} />;
+        return (
+            <AllListings
+                myListings={myListings}
+                onBack={() => setShowAllListings(false)}
+                getCurrencySymbol={getCurrencySymbol}
+                onEdit={handleEdit}
+                onRemove={handleRemove}
+                deleteModal={deleteModal}
+                onConfirmDelete={confirmDelete}
+                onCancelDelete={() => setDeleteModal(null)}
+            />
+        );
     }
 
     return (
-        <div className="p-4 pb-8 flex flex-col gap-4">
+        <div className="relative p-4 pb-8 flex flex-col gap-4">
             <div className="px-1">
                 <h2 className="text-xl font-black text-gray-800">Hello, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Here's what's happening with your crops.</p>
