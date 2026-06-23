@@ -98,7 +98,7 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove, 
     onCancelDelete: () => void
 }) {
     useEffect(() => {
-        window.scrollTo(0, 0);
+        document.getElementById('main-scroller')?.scrollTo({ top: 0, behavior: 'instant' });
     }, []);
 
     useEffect(() => {
