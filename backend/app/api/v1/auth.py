@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Union
 from app.schemas.auth import SignupRequest, LoginRequest, AuthResponse, RefreshRequest, MessageResponse
 from app.core.supabase import supabase
 from app.core.config import settings
@@ -18,7 +18,7 @@ class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
 
 # Signup endpoint
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=Union[AuthResponse, MessageResponse], status_code=status.HTTP_201_CREATED)
 def signup(body: SignupRequest):
     # 1. Create user in Supabase Auth
     try:
