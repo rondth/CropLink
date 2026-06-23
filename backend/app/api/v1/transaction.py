@@ -4,7 +4,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
-from app.utils import calculate_total, sort_and_deduplicate
+from app.utils import calculate_total, sort_and_deduplicate, get_rate_to_usd
 from typing import Literal
 import stripe
 
@@ -146,13 +146,36 @@ async def stripe_webhook(request: Request):
 @router.get("/transactions")
 async def get_transactions(user_id: str = Depends(get_current_user_id), sort: Literal["asc", "desc"] = "desc", role: str = None):
     if role == "seller":
-        rows = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute().data
+        rows = supabase.table("transaction") \
+            .select("*, listing:crops_listings(*), payment:payments(amount, currency)") \
+            .eq("seller_id", user_id).execute().data
     elif role == "buyer":
-        rows = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("buyer_id", user_id).execute().data
+        rows = supabase.table("transaction") \
+            .select("*, listing:crops_listings(*), payment:payments(amount, currency)") \
+            .eq("buyer_id", user_id).execute().data
     else:
-        bought = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("buyer_id", user_id).execute()
-        sold = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("seller_id", user_id).execute()
+        bought = supabase.table("transaction") \
+            .select("*, listing:crops_listings(*), payment:payments(amount, currency)") \
+            .eq("buyer_id", user_id).execute()
+        sold = supabase.table("transaction") \
+            .select("*, listing:crops_listings(*), payment:payments(amount, currency)") \
+            .eq("seller_id", user_id).execute()
         rows = bought.data + sold.data
+
+    # convert each transaction's amount to USD
+    rates_cache = {}
+    for txn in rows:
+        currency = (txn.get("currency") or "USD").upper()
+        payment = txn.get("payment")
+        total = float(payment[0]["amount"]) if payment else 0.0
+
+        if currency == "USD":
+            txn["amount_usd"] = total
+        else:
+            if currency not in rates_cache:
+                rates_cache[currency] = get_rate_to_usd(supabase, currency)
+            rate = rates_cache[currency]
+            txn["amount_usd"] = round(total * rate, 2) if rate else 0.0
 
     return {"transactions": sort_and_deduplicate(rows, sort)}
 

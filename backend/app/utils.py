@@ -1,4 +1,5 @@
 from typing import Literal
+import datetime
 
 PLATFORM_FEE_RATE = 0.02
 
@@ -26,3 +27,27 @@ def sort_and_deduplicate(rows: list[dict], sort: Literal["asc", "desc"] = "desc"
             seen.add(t["id"])
             deduped.append(t)
     return deduped
+
+def get_rate_to_usd(supabase, currency: str) -> float | None:
+    result = supabase.table("exchange_rate") \
+        .select("rate_to_usd") \
+        .eq("currency", currency.upper()) \
+        .not_.is_("rate_to_usd", "null") \
+        .lte("date", datetime.date.today().isoformat()) \
+        .order("date", desc=True) \
+        .limit(1) \
+        .execute()
+    
+    if result.data and result.data[0]["rate_to_usd"]:
+        return float(result.data[0]["rate_to_usd"])
+    return None
+
+async def get_subtotal_in_usd(transaction, db) -> float | None:
+    currency = transaction.currency or "USD"
+    if currency == "USD":
+        return float(transaction.total_amount)
+    
+    rate = await get_rate_to_usd(db, currency, transaction.created_at.date().isoformat())
+    if rate is None:
+        return None
+    return float(transaction.total_amount) * rate

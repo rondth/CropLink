@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { getCurrencySymbol, calcSubtotal } from '@/lib/utils';
+import { getCurrencySymbol, calcSubtotal, formatAmount } from '@/lib/utils';
 
 {/* monthly revenue breakdown */}
 function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: () => void, revenueBreakdown: { name: string; percentage: number; color: string; price: number }[], totalRevenue: number }) {
@@ -193,8 +193,6 @@ export default function Dashboard() {
                 const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
                 const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
 
-                const subtotal = calcSubtotal;
-
                 const thisMonthSales = completedSales.filter((t: any) => {
                     const d = new Date(t.created_at);
                     return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
@@ -204,8 +202,13 @@ export default function Dashboard() {
                     return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
                 });
 
-                const thisMonthTotal = thisMonthSales.reduce((sum: number, t: any) => sum + subtotal(t), 0);
-                const lastMonthTotal = lastMonthSales.reduce((sum: number, t: any) => sum + subtotal(t), 0);
+                const thisMonthTotal = thisMonthSales.reduce((sum: number, t: any) => {
+                    return sum + (t.amount_usd ?? 0);
+                }, 0);
+
+                const lastMonthTotal = lastMonthSales.reduce((sum: number, t: any) => {
+                    return sum + (t.amount_usd ?? 0);
+                }, 0);
 
                 let changeStr = '+0%';
                 if (lastMonthTotal > 0) {
@@ -221,15 +224,13 @@ export default function Dashboard() {
 
                 // Revenue breakdown by crop (this month, grouped by currency)
                 const colors = ['#ff6b6b', '#4ade80', '#facc15', '#74c0fc', '#a374fc', '#ff922b'];
-                const revByCrop: { [key: string]: { amount: number; currency: string } } = {};
+                const revByCrop: { [key: string]: { amount: number; } } = {};
                 thisMonthSales.forEach((t: any) => {
                     const name = t.listing?.crop_name ?? 'Unknown';
-                    const currency = t.currency ?? 'USD';
-                    if (!revByCrop[name]) revByCrop[name] = { amount: 0, currency };
-                    revByCrop[name].amount += subtotal(t);
+                    if (!revByCrop[name]) revByCrop[name] = { amount: 0 };
+                    revByCrop[name].amount += t.amount_usd ?? 0;
                 });
-                const currencies = [...new Set(thisMonthSales.map((t: any) => t.currency ?? 'USD'))];
-                setRevenueCurrency(currencies.length === 1 ? currencies[0] : null);
+                setRevenueCurrency('USD');
                 const totalRev = Object.values(revByCrop).reduce((s, v) => s + v.amount, 0);
                 if (totalRev > 0) {
                     let ci = 0;
@@ -256,6 +257,7 @@ export default function Dashboard() {
     }, [user?.user_id]);
 
     const activeMyListings = myListings.filter(listing => listing.status === 'active');
+    const { display, suffix } = formatAmount(monthlyRevenue.amount);
 
     const handleEdit = (listingId: string) => {
         router.push(`/seller/edit/${listingId}`);
@@ -300,10 +302,8 @@ export default function Dashboard() {
                     <p className="text-[10px] font-semibold opacity-80 mb-1">Monthly Revenue</p>
                     <h3 className="text-xl font-black mb-2">
                         {revenueCurrency ? `${revenueCurrency} ` : ''}
-                        {monthlyRevenue.amount > 0
-                            ? Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(monthlyRevenue.amount)
-                            : '0.00'}
-                        {!revenueCurrency && monthlyRevenue.amount > 0 && <span className="text-[10px] font-medium opacity-70 ml-1">mixed</span>}
+                        {display}{suffix}
+                        <p className="text-[9px] opacity-60 mt-1">Converted to USD</p>
                     </h3>
                     <span className="text-[9px] font-bold bg-white/20 inline-flex items-center px-1.5 py-1 rounded-md self-start">
                         {monthlyRevenue.change} vs last month

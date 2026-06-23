@@ -30,3 +30,10 @@ export function filterProducts(
         return categoryMatch && searchMatch;
     });
 }
+
+export function formatAmount(n: number): { display: string; suffix: string } {
+    if (Math.abs(n) >= 1e9) return { display: (n / 1e9).toFixed(1).replace(/\.0$/, ''), suffix: 'B' };
+    if (Math.abs(n) >= 1e6) return { display: (n / 1e6).toFixed(1).replace(/\.0$/, ''), suffix: 'M' };
+    if (Math.abs(n) >= 1e3) return { display: (n / 1e3).toFixed(1).replace(/\.0$/, ''), suffix: 'K' };
+    return { display: Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n), suffix: '' };
+}
