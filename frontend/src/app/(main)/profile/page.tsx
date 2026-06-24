@@ -25,7 +25,6 @@ export default function Profile() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
-    const [showAllReviews, setShowAllReviews] = useState(false);
     const [cropModalOpen, setCropModalOpen] = useState(false);
     const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
     const [crop, setCrop] = useState<Crop>();
@@ -447,7 +446,7 @@ export default function Profile() {
                 ) : (
                     <>
                         <div className="flex flex-col gap-2">
-                            {(showAllReviews ? reviews : reviews.slice(0, 3)).map(review => (
+                            {reviews.slice(0, 3).map(review => (
                                 <ReviewCard
                                     key={review.id}
                                     reviewerId={review.reviewer_id}

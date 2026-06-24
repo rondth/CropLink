@@ -153,7 +153,7 @@ function CheckoutForm({
     );
 }
 
-function SuccessScreen({ transactionId, onViewOrder }: { transactionId: string; onViewOrder: () => void }) {
+function SuccessScreen({ onViewOrder }: { onViewOrder: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
             <div className="w-16 h-16 bg-green-50 rounded-full text-green-600 flex items-center justify-center text-3xl">
@@ -242,7 +242,6 @@ export default function CheckoutPage() {
         return (
             <div className="max-w-lg mx-auto p-6">
                 <SuccessScreen
-                    transactionId={transactionId}
                     onViewOrder={() => router.push(`/orders/${transactionId}`)}
                 />
             </div>

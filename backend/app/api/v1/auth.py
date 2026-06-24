@@ -79,7 +79,7 @@ def login(body: LoginRequest):
         auth_response = supabase.auth.sign_in_with_password(
             {"email": body.email, "password": body.password}
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
@@ -120,7 +120,7 @@ def login(body: LoginRequest):
 def refresh_token(body: RefreshRequest):
     try:
         auth_response = supabase.auth.refresh_session(body.refresh_token)
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not refresh session. Please log in again.",

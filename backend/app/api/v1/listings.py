@@ -4,7 +4,6 @@ from typing import Optional, Literal
 from datetime import date, datetime, timezone
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
-from urllib.parse import unquote
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -122,7 +121,7 @@ def get_listings():
     response = supabase.table("crops_listings").select("*").eq("status", "active").gt("quantity", 0).execute()
     listings = response.data
 
-    seller_ids = list({l["seller_id"] for l in listings if l.get("seller_id")})
+    seller_ids = list({listing["seller_id"] for listing in listings if listing.get("seller_id")})
     if seller_ids:
         profiles = supabase.table("profiles").select("user_id, name").in_("user_id", seller_ids).execute()
         seller_map = {p["user_id"]: p["name"] for p in profiles.data}
@@ -205,7 +204,6 @@ def get_categories():
 # GET /listings/category/{category}
 @router.get("/category/{category}")
 def get_listings_by_category(category: str):
-    decoded_category = unquote(category)
     response = supabase.table("crops_listings").select("*").eq("category", category).eq("status", "active").execute()
     return response.data
 
@@ -232,9 +230,12 @@ def get_all_product_price_data(currency:str = "USD"):
 
     if target_currency == "USD":
         for d in data_list:
-            if d.get("avg_price") is not None: d["avg_price"] = round(d["avg_price"], 2)
-            if d.get("min_price") is not None: d["min_price"] = round(d["min_price"], 2)
-            if d.get("max_price") is not None: d["max_price"] = round(d["max_price"], 2)
+            if d.get("avg_price") is not None: 
+                d["avg_price"] = round(d["avg_price"], 2)
+            if d.get("min_price") is not None: 
+                d["min_price"] = round(d["min_price"], 2)
+            if d.get("max_price") is not None: 
+                d["max_price"] = round(d["max_price"], 2)
             d["currency"] = target_currency
         return data_list
     
@@ -275,7 +276,7 @@ def get_all_product_price_data(currency:str = "USD"):
 # GET /listings/prices/{produce_id}/history
 @router.get("/prices/{produce_id}/history")
 def get_product_price_history(produce_id: str, days: int = 7, currency: str = "USD"):
-    from datetime import date, timedelta
+    from datetime import timedelta
     cutoff = (date.today() - timedelta(days=days)).isoformat()
 
     price_response = (
@@ -337,9 +338,12 @@ def get_product_price_data(produce_id: str, currency:str = "USD"):
     target_currency = currency.upper()
 
     if target_currency == "USD":
-        if data.get("avg_price") is not None: data["avg_price"] = round(data["avg_price"], 2)
-        if data.get("min_price") is not None: data["min_price"] = round(data["min_price"], 2)
-        if data.get("max_price") is not None: data["max_price"] = round(data["max_price"], 2)
+        if data.get("avg_price") is not None: 
+            data["avg_price"] = round(data["avg_price"], 2)
+        if data.get("min_price") is not None: 
+            data["min_price"] = round(data["min_price"], 2)
+        if data.get("max_price") is not None: 
+            data["max_price"] = round(data["max_price"], 2)
         data["currency"] = "USD"
         return data
     

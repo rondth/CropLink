@@ -3,38 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { getCurrencySymbol, calcSubtotal, formatAmount } from '@/lib/utils';
+import { getCurrencySymbol, formatAmount } from '@/lib/utils';
 
 {/* monthly revenue breakdown */}
-function ConfirmDeleteModal({ listingName, onConfirm, onCancel }: { listingName: string; onConfirm: () => void; onCancel: () => void }) {
-    return (
-        <div className="absolute inset-0 bg-black/40 z-50 flex items-end justify-center pb-8 px-4">
-            <div className="bg-white rounded-3xl w-full max-w-sm p-6 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-black text-gray-800">Delete listing?</h3>
-                    <p className="text-sm text-gray-500">
-                        <span className="font-semibold text-gray-700">"{listingName}"</span> will be permanently removed. This cannot be undone.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={onCancel}
-                        className="flex-1 py-3 rounded-2xl border border-gray-200 text-sm font-bold text-gray-600 active:scale-95 transition-transform"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        className="flex-1 py-3 rounded-2xl bg-red-500 text-sm font-bold text-white active:scale-95 transition-transform"
-                    >
-                        Delete
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function RevenueDetails({ onBack, revenueBreakdown, totalRevenue }: { onBack: () => void, revenueBreakdown: { name: string; percentage: number; color: string; price: number }[], totalRevenue: number }) {
     let cumulativePercentage = 0;
     

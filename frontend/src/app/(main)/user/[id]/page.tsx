@@ -17,7 +17,6 @@ export default function PublicProfile() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [reviews, setReviews] = useState<any[]>([]);
-    const [bio, setBio] = useState('');
 
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
@@ -33,7 +32,6 @@ export default function PublicProfile() {
             setProfile(profileRes.data);
             setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
             setReviews(reviewsRes.data);
-            setBio(profileRes.data.bio || '');
         }).catch(err => {
             console.error("Failed to load seller profile:", err);
         }).finally(() => {

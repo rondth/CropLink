@@ -1,4 +1,5 @@
-import os, stripe
+import os
+import stripe
 from fastapi import APIRouter, HTTPException, Request, Depends
 from supabase import create_client
 from dotenv import load_dotenv
@@ -6,7 +7,6 @@ from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
 from app.utils import calculate_total, sort_and_deduplicate, get_rate_to_usd
 from typing import Literal
-import stripe
 
 load_dotenv()
 
