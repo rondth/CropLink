@@ -48,9 +48,11 @@ rich==14.3.4
 rsa==4.9.1
 six==1.17.0
 starlette==1.0.0
+stripe
 storage3==2.30.0
 StrEnum==0.4.15
 strictyaml==1.7.3
+stripe
 supabase==2.30.0
 supabase-auth==2.30.0
 supabase-functions==2.30.0

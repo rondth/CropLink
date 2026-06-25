@@ -86,7 +86,7 @@ return (
             value={searchTerm}
             onChange={handleChange}
             className="bg-transparent border-none outline-none text-white text-xs font-medium w-full placeholder:text-white/55"
-            placeholder="Search crops, farmers, farms..."
+            placeholder="Search any crops here..."
             onFocus={() => setIsFocused(true)}
           />
         </div>

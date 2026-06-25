@@ -1,19 +1,22 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
+import { useSearchParams } from 'next/navigation';
+import { filterProducts } from '@/lib/utils';
 
 interface Product {
     id: string;
     category: string;
+    crop_name: string;
     [key: string]: any;
 }
 
-export default function Home() {
+function HomeContent() {
     const { role } = useRole();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState<Product[]>([]);
@@ -21,12 +24,18 @@ export default function Home() {
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 6;
+    const searchParams = useSearchParams();
 
     useEffect(() => {
+        const pending = sessionStorage.getItem('pendingProduct');
+        if (pending) {
+            sessionStorage.removeItem('pendingProduct');
+            setSelectedProduct(JSON.parse(pending));
+        }
         const fetchListings = async () => {
             try {
                 const response = await api.get('/listings/');
-                setProducts(response.data); 
+                setProducts(response.data);
             } catch (error) {
                 console.error("Failed to fetch listings:", error);
             }
@@ -34,17 +43,28 @@ export default function Home() {
         fetchListings();
     }, []);
 
-    const filteredProducts = products.filter(product => {
-        const categoryMatch = selectedCategory === 'All' || product.category === selectedCategory;
-        const searchMatch = !searchFilter || product.crop_name.toLowerCase().includes(searchFilter.toLowerCase());
-        return categoryMatch && searchMatch;
-    });
+    useEffect(() => {
+        const listingId = searchParams.get('listing_id');
+        if (!listingId) return;
+
+        api.get(`/listings/${listingId}`)
+            .then(res => setSelectedProduct(res.data))
+            .catch(err => console.error('Failed to load listing from URL:', err));
+    }, [searchParams]);
+
+    const filteredProducts = filterProducts(products, selectedCategory, searchFilter);
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const paginatedProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-    // resets to page 1 when category or search filter changes
+    useEffect(() => {
+        if (selectedProduct) {
+            const scroller = document.getElementById('main-scroller');
+            if (scroller) scroller.scrollTop = 0;
+        }
+    }, [selectedProduct]);
+
     useEffect(() => {
         setCurrentPage(1);
     }, [selectedCategory, searchFilter]);
@@ -54,9 +74,10 @@ export default function Home() {
         setSearchFilter('');
     };
 
+
     return (
         <>
-            {role === 'buyer' ? (
+            {role !== 'seller' ? (
                 selectedProduct ? (
                     <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />
                 ) : (
@@ -98,5 +119,13 @@ export default function Home() {
                 <Dashboard />
             )}
         </>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#faf8f5]"><p className="text-sm font-bold text-gray-400">Loading...</p></div>}>
+            <HomeContent />
+        </Suspense>
     );
 }
