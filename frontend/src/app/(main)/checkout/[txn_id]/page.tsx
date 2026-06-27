@@ -6,7 +6,9 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!, {
+    developerTools: { assistant: { enabled: false } },
+});
 
 interface Transaction {
     id: string;
