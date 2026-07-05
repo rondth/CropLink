@@ -79,6 +79,80 @@ class TestUnblockUser:
         assert response.status_code == 401
 
 
+class TestReportUser:
+    def test_rejects_reporting_self(self, authed_client, current_user):
+        response = authed_client.post(
+            f"/api/v1/users/{current_user['sub']}/report", json={"reason": "Spamming listings repeatedly"}
+        )
+
+        assert response.status_code == 400
+
+    def test_404_when_target_missing(self, authed_client, supabase_mock):
+        supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = (
+            SimpleNamespace(data=[])
+        )
+
+        response = authed_client.post(
+            "/api/v1/users/user-999/report", json={"reason": "Spamming listings repeatedly"}
+        )
+
+        assert response.status_code == 404
+
+    def test_creates_report(self, authed_client, supabase_mock):
+        supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"user_id": "user-999"}])
+        )
+        supabase_mock.table("reports").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "report-1"}]
+        )
+
+        response = authed_client.post(
+            "/api/v1/users/user-999/report", json={"reason": "Spamming listings repeatedly"}
+        )
+
+        assert response.status_code == 201
+        assert response.json()["id"] == "report-1"
+
+    def test_allows_multiple_reports_without_uniqueness_check(self, authed_client, supabase_mock):
+        supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"user_id": "user-999"}])
+        )
+        supabase_mock.table("reports").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "report-2"}]
+        )
+
+        response = authed_client.post(
+            "/api/v1/users/user-999/report", json={"reason": "Another separate incident"}
+        )
+
+        assert response.status_code == 201
+        supabase_mock.table("reports").select.assert_not_called()
+
+    def test_rejects_reason_below_min_length(self, authed_client):
+        response = authed_client.post("/api/v1/users/user-999/report", json={"reason": "too short"})
+
+        assert response.status_code == 422
+
+    def test_rejects_whitespace_padded_short_reason(self, authed_client):
+        response = authed_client.post(
+            "/api/v1/users/user-999/report", json={"reason": "   short   "}
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_reason_exceeding_max_length(self, authed_client):
+        response = authed_client.post(
+            "/api/v1/users/user-999/report", json={"reason": "x" * 501}
+        )
+
+        assert response.status_code == 422
+
+    def test_requires_authentication(self, client):
+        response = client.post("/api/v1/users/user-999/report", json={"reason": "Spamming listings repeatedly"})
+
+        assert response.status_code == 401
+
+
 class TestGetBlockedUsers:
     def test_returns_blocked_profiles(self, authed_client, supabase_mock):
         supabase_mock.table("blocks").select.return_value.eq.return_value.execute.return_value = SimpleNamespace(

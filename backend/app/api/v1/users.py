@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from app.core.dependencies import get_current_user_id
 from app.core.supabase import supabase
@@ -21,6 +21,22 @@ class BlockedUser(BaseModel):
     role: Optional[str] = None
     profile_picture_url: Optional[str] = None
     blocked_at: Optional[str] = None
+
+
+class ReportCreate(BaseModel):
+    reason: str = Field(..., min_length=10, max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def strip_and_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 10:
+            raise ValueError("Reason must be at least 10 characters")
+        return v
+
+
+class ReportResponse(BaseModel):
+    id: str
 
 # ENDPOINTS
 
@@ -67,6 +83,26 @@ def unblock_user(user_id: str, blocker_id: str = Depends(get_current_user_id)):
 
     supabase.table("blocks").delete().eq("blocker_id", blocker_id).eq("blocked_id", user_id).execute()
     return None
+
+
+# POST /users/{user_id}/report
+@router.post("/{user_id}/report", response_model=ReportResponse, status_code=status.HTTP_201_CREATED)
+def report_user(user_id: str, data: ReportCreate, reporter_id: str = Depends(get_current_user_id)):
+    if user_id == reporter_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot report yourself")
+
+    target = supabase.table("profiles").select("user_id").eq("user_id", user_id).execute()
+    if not target.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    response = supabase.table("reports").insert({
+        "reporter_id": reporter_id,
+        "reported_id": user_id,
+        "reason": data.reason,
+        "status": "pending",
+    }).execute()
+
+    return response.data[0]
 
 
 # GET /users/me/blocked
