@@ -74,6 +74,45 @@ class TestGetListings:
         assert response.status_code == 200
         assert response.json() == []
 
+    def test_anonymous_visitor_sees_all_listings_unfiltered(self, client, supabase_mock, monkeypatch):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "1", "seller_id": "user-1", "crop_name": "Tomato"}])
+        )
+        supabase_mock.table("profiles").select.return_value.in_.return_value.execute.return_value = SimpleNamespace(
+            data=[{"user_id": "user-1", "name": "Farmer Joe"}]
+        )
+        monkeypatch.setattr(
+            "app.api.v1.listings.get_blocked_user_ids",
+            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not be called for anonymous users")),
+        )
+
+        response = client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+
+    def test_excludes_listings_from_blocked_sellers(self, authed_client, supabase_mock, monkeypatch):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(
+                data=[
+                    {"id": "1", "seller_id": "user-1", "crop_name": "Tomato"},
+                    {"id": "2", "seller_id": "blocked-seller", "crop_name": "Corn"},
+                ]
+            )
+        )
+        supabase_mock.table("profiles").select.return_value.in_.return_value.execute.return_value = SimpleNamespace(
+            data=[{"user_id": "user-1", "name": "Farmer Joe"}]
+        )
+        monkeypatch.setattr(
+            "app.api.v1.listings.get_blocked_user_ids", lambda supabase, user_id: {"blocked-seller"}
+        )
+
+        response = authed_client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        ids = [listing["id"] for listing in response.json()]
+        assert ids == ["1"]
+
 
 class TestGetMyListings:
     def test_returns_only_own_listings(self, authed_client, supabase_mock, current_user):

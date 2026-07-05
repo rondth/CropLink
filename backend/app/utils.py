@@ -28,6 +28,21 @@ def sort_and_deduplicate(rows: list[dict], sort: Literal["asc", "desc"] = "desc"
             deduped.append(t)
     return deduped
 
+def get_blocked_user_ids(supabase, user_id: str) -> set[str]:
+    """Return the set of user_ids that are block-related to user_id in either
+    direction (user_id blocked them, or they blocked user_id)."""
+    blocked_by_user = (
+        supabase.table("blocks").select("blocked_id").eq("blocker_id", user_id).execute()
+    )
+    blocked_user = (
+        supabase.table("blocks").select("blocker_id").eq("blocked_id", user_id).execute()
+    )
+
+    ids = {row["blocked_id"] for row in blocked_by_user.data}
+    ids.update(row["blocker_id"] for row in blocked_user.data)
+    return ids
+
+
 def get_rate_to_usd(supabase, currency: str) -> float | None:
     result = supabase.table("exchange_rate") \
         .select("rate_to_usd") \

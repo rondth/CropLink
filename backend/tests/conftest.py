@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from app.core.dependencies import get_current_user, get_current_user_id
+from app.core.dependencies import get_current_user, get_current_user_id, get_optional_user_id
 
 
 @pytest.fixture
@@ -28,6 +28,7 @@ def supabase_mock(monkeypatch):
     monkeypatch.setattr("app.api.v1.auth.supabase", mock)
     monkeypatch.setattr("app.api.v1.listings.supabase", mock)
     monkeypatch.setattr("app.api.v1.users.supabase", mock)
+    monkeypatch.setattr("app.api.v1.transaction.supabase", mock)
     return mock
 
 
@@ -43,12 +44,14 @@ def authed_as(client):
         payload = {"sub": user_id, "user_metadata": {"role": role}}
         app.dependency_overrides[get_current_user] = lambda: payload
         app.dependency_overrides[get_current_user_id] = lambda: payload["sub"]
+        app.dependency_overrides[get_optional_user_id] = lambda: payload["sub"]
         return client
 
     yield _factory
 
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_current_user_id, None)
+    app.dependency_overrides.pop(get_optional_user_id, None)
 
 
 @pytest.fixture
