@@ -16,21 +16,22 @@ class TestBlockUser:
 
         assert response.status_code == 404
 
-    def test_409_when_already_blocked(self, authed_client, supabase_mock, current_user):
+    def test_block_rejects_duplicate_active_block(self, authed_client, supabase_mock, current_user):
         supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = (
             SimpleNamespace(data=[{"user_id": "user-999"}])
         )
         supabase_mock.table(
             "blocks"
         ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
-            data=[{"id": "block-1"}]
+            data=[{"id": "block-1", "status": "active"}]
         )
 
         response = authed_client.post("/api/v1/users/user-999/block")
 
         assert response.status_code == 409
+        supabase_mock.table("blocks").insert.assert_not_called()
 
-    def test_creates_block(self, authed_client, supabase_mock):
+    def test_block_creates_active_row(self, authed_client, supabase_mock):
         supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = (
             SimpleNamespace(data=[{"user_id": "user-999"}])
         )
@@ -45,6 +46,37 @@ class TestBlockUser:
 
         assert response.status_code == 201
         assert response.json()["blocked_id"] == "user-999"
+        supabase_mock.table("blocks").insert.assert_called_once_with({
+            "blocker_id": "user-123",
+            "blocked_id": "user-999",
+        })
+
+    def test_reblocking_after_unblock_reactivates_existing_row_instead_of_inserting_duplicate(
+        self, authed_client, supabase_mock
+    ):
+        supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"user_id": "user-999"}])
+        )
+        supabase_mock.table(
+            "blocks"
+        ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "block-1", "status": "revoked"}]
+        )
+        supabase_mock.table(
+            "blocks"
+        ).update.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "block-1", "blocker_id": "user-123", "blocked_id": "user-999", "created_at": "2026-01-01"}]
+        )
+
+        response = authed_client.post("/api/v1/users/user-999/block")
+
+        assert response.status_code == 201
+        assert response.json()["blocked_id"] == "user-999"
+        supabase_mock.table("blocks").insert.assert_not_called()
+        update_call = supabase_mock.table("blocks").update.call_args[0][0]
+        assert update_call["status"] == "active"
+        assert "updated_at" in update_call
+        supabase_mock.table("blocks").update.return_value.eq.assert_called_once_with("id", "block-1")
 
     def test_requires_authentication(self, client):
         response = client.post("/api/v1/users/user-999/block")
@@ -53,25 +85,33 @@ class TestBlockUser:
 
 
 class TestUnblockUser:
-    def test_404_when_no_block_exists(self, authed_client, supabase_mock):
+    def test_unblock_404_when_no_active_block_exists(self, authed_client, supabase_mock):
         supabase_mock.table(
             "blocks"
-        ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(data=[])
+        ).select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = (
+            SimpleNamespace(data=[])
+        )
 
         response = authed_client.post("/api/v1/users/user-999/unblock")
 
         assert response.status_code == 404
+        supabase_mock.table("blocks").update.assert_not_called()
+        supabase_mock.table("blocks").delete.assert_not_called()
 
-    def test_succeeds_when_block_exists(self, authed_client, supabase_mock):
+    def test_unblock_sets_status_to_revoked_not_delete(self, authed_client, supabase_mock):
         supabase_mock.table(
             "blocks"
-        ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
-            data=[{"id": "block-1"}]
+        ).select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "block-1"}])
         )
 
         response = authed_client.post("/api/v1/users/user-999/unblock")
 
         assert response.status_code == 204
+        supabase_mock.table("blocks").delete.assert_not_called()
+        update_call = supabase_mock.table("blocks").update.call_args[0][0]
+        assert update_call["status"] == "revoked"
+        assert "updated_at" in update_call
 
     def test_requires_authentication(self, client):
         response = client.post("/api/v1/users/user-999/unblock")
@@ -154,8 +194,36 @@ class TestReportUser:
 
 
 class TestGetBlockedUsers:
+    def test_get_blocked_users_excludes_revoked_blocks(self, authed_client, supabase_mock):
+        supabase_mock.table(
+            "blocks"
+        ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[
+                {
+                    "blocked_id": "user-999",
+                    "created_at": "2026-07-05",
+                    "blocked": {
+                        "user_id": "user-999",
+                        "name": "Still Blocked",
+                        "role": "seller",
+                        "profile_picture_url": None,
+                    },
+                }
+            ]
+        )
+
+        response = authed_client.get("/api/v1/users/me/blocked")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        assert body[0]["user_id"] == "user-999"
+        supabase_mock.table("blocks").select.return_value.eq.return_value.eq.assert_called_once_with(
+            "status", "active"
+        )
+
     def test_returns_blocked_profiles(self, authed_client, supabase_mock):
-        supabase_mock.table("blocks").select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        supabase_mock.table("blocks").select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
             data=[
                 {
                     "blocked_id": "user-999",
@@ -178,7 +246,9 @@ class TestGetBlockedUsers:
         assert body[0]["name"] == "Blocked Person"
 
     def test_returns_empty_list_when_none_blocked(self, authed_client, supabase_mock):
-        supabase_mock.table("blocks").select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        supabase_mock.table(
+            "blocks"
+        ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
             data=[]
         )
 

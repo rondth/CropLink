@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
@@ -52,13 +53,24 @@ def block_user(user_id: str, blocker_id: str = Depends(get_current_user_id)):
 
     existing = (
         supabase.table("blocks")
-        .select("id")
+        .select("id, status")
         .eq("blocker_id", blocker_id)
         .eq("blocked_id", user_id)
         .execute()
     )
+
     if existing.data:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User is already blocked")
+        row = existing.data[0]
+        if row["status"] == "active":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User is already blocked")
+
+        response = (
+            supabase.table("blocks")
+            .update({"status": "active", "updated_at": datetime.now(timezone.utc).isoformat()})
+            .eq("id", row["id"])
+            .execute()
+        )
+        return response.data[0]
 
     response = supabase.table("blocks").insert({
         "blocker_id": blocker_id,
@@ -76,12 +88,16 @@ def unblock_user(user_id: str, blocker_id: str = Depends(get_current_user_id)):
         .select("id")
         .eq("blocker_id", blocker_id)
         .eq("blocked_id", user_id)
+        .eq("status", "active")
         .execute()
     )
     if not existing.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Block relationship not found")
 
-    supabase.table("blocks").delete().eq("blocker_id", blocker_id).eq("blocked_id", user_id).execute()
+    supabase.table("blocks").update({
+        "status": "revoked",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("blocker_id", blocker_id).eq("blocked_id", user_id).execute()
     return None
 
 
@@ -112,6 +128,7 @@ def get_blocked_users(blocker_id: str = Depends(get_current_user_id)):
         supabase.table("blocks")
         .select("blocked_id, created_at, blocked:profiles!blocks_blocked_id_fkey(user_id, name, role, profile_picture_url)")
         .eq("blocker_id", blocker_id)
+        .eq("status", "active")
         .execute()
     )
 

@@ -32,10 +32,18 @@ def get_blocked_user_ids(supabase, user_id: str) -> set[str]:
     """Return the set of user_ids that are block-related to user_id in either
     direction (user_id blocked them, or they blocked user_id)."""
     blocked_by_user = (
-        supabase.table("blocks").select("blocked_id").eq("blocker_id", user_id).execute()
+        supabase.table("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user_id)
+        .eq("status", "active")
+        .execute()
     )
     blocked_user = (
-        supabase.table("blocks").select("blocker_id").eq("blocked_id", user_id).execute()
+        supabase.table("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user_id)
+        .eq("status", "active")
+        .execute()
     )
 
     ids = {row["blocked_id"] for row in blocked_by_user.data}
