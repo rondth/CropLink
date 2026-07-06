@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { CheckCircle, User } from 'lucide-react';
+import { CheckCircle, User, MoreVertical, Ban, Flag } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/AuthContext';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import ProductDetails from '@/components/marketplace/ProductDetails';
 import ReviewCard from '@/components/marketplace/ReviewCard';
@@ -11,6 +12,7 @@ export default function PublicProfile() {
     const params = useParams();
     const router = useRouter();
     const userId = params.id as string;
+    const { isAuthenticated, user } = useAuth();
 
     const [profile, setProfile] = useState<any>(null);
     const [listings, setListings] = useState<any[]>([]);
@@ -18,9 +20,115 @@ export default function PublicProfile() {
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [reviews, setReviews] = useState<any[]>([]);
 
+    const isOwnProfile = isAuthenticated && user?.user_id === userId;
+
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false);
+    const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
+    const [blockLoading, setBlockLoading] = useState(false);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
         : null;
+
+    useEffect(() => {
+        if (!toast) return;
+        const t = setTimeout(() => setToast(null), 3000);
+        return () => clearTimeout(t);
+    }, [toast]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !userId || isOwnProfile) return;
+        api.get('/users/me/blocked')
+            .then(res => setIsBlocked(res.data.some((u: any) => u.user_id === userId)))
+            .catch(() => {});
+    }, [isAuthenticated, userId, isOwnProfile]);
+
+    const handleBlockClick = () => {
+        setMenuOpen(false);
+        if (!isAuthenticated) {
+            router.push('/login');
+            return;
+        }
+        if (isBlocked) {
+            unblockUser();
+        } else {
+            setBlockConfirmOpen(true);
+        }
+    };
+
+    const confirmBlock = async () => {
+        setBlockLoading(true);
+        try {
+            await api.post(`/users/${userId}/block`);
+            setIsBlocked(true);
+            setBlockConfirmOpen(false);
+            setToast({ type: 'success', message: `You've blocked ${profile?.name || 'this user'}.` });
+        } catch (err: any) {
+            if (err?.response?.status === 409) {
+                setIsBlocked(true);
+                setBlockConfirmOpen(false);
+            } else {
+                setToast({ type: 'error', message: err?.response?.data?.detail || 'Failed to block user.' });
+            }
+        } finally {
+            setBlockLoading(false);
+        }
+    };
+
+    const unblockUser = async () => {
+        setBlockLoading(true);
+        try {
+            await api.post(`/users/${userId}/unblock`);
+            setIsBlocked(false);
+            setToast({ type: 'success', message: `You've unblocked ${profile?.name || 'this user'}.` });
+        } catch (err: any) {
+            setIsBlocked(false);
+            setToast({ type: 'error', message: err?.response?.data?.detail || 'Failed to unblock user.' });
+        } finally {
+            setBlockLoading(false);
+        }
+    };
+
+    const handleReportClick = () => {
+        setMenuOpen(false);
+        if (!isAuthenticated) {
+            router.push('/login');
+            return;
+        }
+        setReportError(null);
+        setReportReason('');
+        setReportModalOpen(true);
+    };
+
+    const closeReportModal = () => {
+        if (reportSubmitting) return;
+        setReportModalOpen(false);
+        setReportReason('');
+        setReportError(null);
+    };
+
+    const submitReport = async () => {
+        const reason = reportReason.trim();
+        if (reason.length < 10) return;
+        setReportSubmitting(true);
+        setReportError(null);
+        try {
+            await api.post(`/users/${userId}/report`, { reason });
+            setReportModalOpen(false);
+            setReportReason('');
+            setToast({ type: 'success', message: 'Report submitted, our team will review it.' });
+        } catch (err: any) {
+            setReportError(err?.response?.data?.detail || 'Failed to submit report. Please try again.');
+        } finally {
+            setReportSubmitting(false);
+        }
+    };
 
     useEffect(() => {
         if (!userId) return;
@@ -87,6 +195,41 @@ export default function PublicProfile() {
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
+
+                {/* kebab menu (block / report) */}
+                {!isOwnProfile && (
+                    <div className="absolute top-4 right-4 z-20">
+                        <button
+                            onClick={() => setMenuOpen(o => !o)}
+                            className="w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center backdrop-blur-md active:scale-95 transition-transform"
+                        >
+                            <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {menuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                                <div className="absolute right-0 top-10 z-20 w-44 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden py-1">
+                                    <button
+                                        onClick={handleBlockClick}
+                                        className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                    >
+                                        <Ban className="w-3.5 h-3.5" />
+                                        {isBlocked ? 'Unblock user' : 'Block user'}
+                                    </button>
+                                    <div className="h-px bg-gray-100" />
+                                    <button
+                                        onClick={handleReportClick}
+                                        className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-CropLink-accentRed hover:bg-red-50 active:bg-red-100 transition-colors"
+                                    >
+                                        <Flag className="w-3.5 h-3.5" />
+                                        Report user
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {/* avatar */}
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 z-10">
@@ -192,6 +335,93 @@ export default function PublicProfile() {
                     <ProductGrid products={listings} onProductClick={setSelectedProduct} />
                 )}
             </div>
+
+            {/* block confirmation */}
+            {blockConfirmOpen && (
+                <div
+                    className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+                    onClick={() => !blockLoading && setBlockConfirmOpen(false)}
+                >
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-sm font-black text-gray-800 mb-1.5">Block {profile.name || 'this user'}?</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed mb-5">
+                            {profile.role === 'seller'
+                                ? "You won't see their listings anymore."
+                                : "You won't be able to transact with each other anymore."}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setBlockConfirmOpen(false)}
+                                disabled={blockLoading}
+                                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmBlock}
+                                disabled={blockLoading}
+                                className="flex-1 py-3 rounded-xl bg-CropLink-accentRed text-white text-sm font-bold active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                                {blockLoading ? 'Blocking...' : 'Block'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* report modal */}
+            {reportModalOpen && (
+                <div
+                    className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+                    onClick={closeReportModal}
+                >
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-sm font-black text-gray-800 mb-1">Report {profile.name || 'this user'}</h3>
+                        <p className="text-xs text-gray-500 mb-3">Tell us what's wrong. Our team will review it.</p>
+                        <textarea
+                            value={reportReason}
+                            onChange={(e) => setReportReason(e.target.value)}
+                            rows={4}
+                            maxLength={500}
+                            placeholder="Describe the issue (min. 10 characters)..."
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl p-3 outline-none focus:border-CropLink-primary transition-colors resize-none"
+                        />
+                        <div className="flex justify-end mt-1 mb-4">
+                            <span className="text-[10px] font-bold text-gray-400">
+                                {reportReason.length}/500
+                            </span>
+                        </div>
+                        {reportError && (
+                            <p className="text-[11px] font-bold text-CropLink-accentRed mb-3">{reportError}</p>
+                        )}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={closeReportModal}
+                                disabled={reportSubmitting}
+                                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 active:scale-95 transition-transform disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={submitReport}
+                                disabled={reportSubmitting || reportReason.trim().length < 10}
+                                className="flex-1 py-3 rounded-xl bg-CropLink-primary text-white text-sm font-bold active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* toast */}
+            {toast && (
+                <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 pointer-events-none">
+                    <div className={`pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs font-bold text-white text-center max-w-xs ${toast.type === 'success' ? 'bg-CropLink-primary' : 'bg-CropLink-accentRed'}`}>
+                        {toast.message}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
