@@ -154,6 +154,125 @@ test.describe('Buyer Checkout', () => {
     });
 });
 
+test.describe('Buyer Block & Report', () => {
+    async function openFirstSellerProfile(page: any) {
+        await page.goto('/');
+        await page.waitForTimeout(2000);
+        const productCard = page.locator('[class*="cursor-pointer"], [class*="card"]').first();
+        if (await productCard.count() === 0) return false;
+        await productCard.click();
+        await page.waitForTimeout(1000);
+
+        const sellerButton = page.locator('h3', { hasText: 'Seller' }).locator('..').locator('button').first();
+        if (await sellerButton.count() === 0) return false;
+        await sellerButton.click();
+        await page.waitForTimeout(1500);
+
+        // kebab menu (block/report) is only rendered for other people's profiles
+        const kebabButton = page.locator('.absolute.top-4.right-4 > button').first();
+        return (await kebabButton.count()) > 0;
+    }
+
+    test('can block a seller from their profile and no longer see their listings', async ({ page }) => {
+        if (!(await openFirstSellerProfile(page))) return;
+
+        const cropName = await page.locator('h4').first().textContent().catch(() => null);
+
+        const kebabButton = page.locator('.absolute.top-4.right-4 > button').first();
+        await kebabButton.click();
+        await page.waitForTimeout(300);
+
+        const blockMenuItem = page.getByRole('button', { name: /^Block user$/ });
+        if (await blockMenuItem.count() === 0) return; // already blocked from a previous run
+        await blockMenuItem.click();
+        await page.waitForTimeout(300);
+
+        const confirmBlockBtn = page.getByRole('button', { name: /^Block$/ });
+        await confirmBlockBtn.click();
+        await page.waitForTimeout(1000);
+
+        await expect(page.locator('text=/blocked/i').first()).toBeVisible();
+
+        await page.goto('/');
+        await page.waitForTimeout(2000);
+        if (cropName) {
+            await expect(page.locator('h4', { hasText: cropName })).toHaveCount(0);
+        }
+
+        // cleanup so the test is repeatable: navigate back to the seller profile and unblock
+        await page.goBack();
+        await page.waitForTimeout(1500);
+        const kebabButtonAgain = page.locator('.absolute.top-4.right-4 > button').first();
+        if (await kebabButtonAgain.count() > 0) {
+            await kebabButtonAgain.click();
+            await page.waitForTimeout(300);
+            const unblockMenuItem = page.getByRole('button', { name: /^Unblock user$/ });
+            if (await unblockMenuItem.count() > 0) {
+                await unblockMenuItem.click();
+                await page.waitForTimeout(1000);
+            }
+        }
+    });
+
+    test('can report a seller with a reason and sees a confirmation', async ({ page }) => {
+        if (!(await openFirstSellerProfile(page))) return;
+
+        const kebabButton = page.locator('.absolute.top-4.right-4 > button').first();
+        await kebabButton.click();
+        await page.waitForTimeout(300);
+
+        const reportMenuItem = page.getByRole('button', { name: /^Report user$/ });
+        if (await reportMenuItem.count() === 0) return;
+        await reportMenuItem.click();
+        await page.waitForTimeout(300);
+
+        const reasonInput = page.locator('textarea');
+        await reasonInput.fill('This user posted spam listings repeatedly.');
+
+        const submitBtn = page.getByRole('button', { name: /^Submit Report$/ });
+        await submitBtn.click();
+        await page.waitForTimeout(1000);
+
+        await expect(page.locator('text=/report submitted/i')).toBeVisible();
+    });
+
+    test('can view and unblock a user from the blocked users list', async ({ page }) => {
+        if (!(await openFirstSellerProfile(page))) return;
+
+        const kebabButton = page.locator('.absolute.top-4.right-4 > button').first();
+        await kebabButton.click();
+        await page.waitForTimeout(300);
+
+        const toggleButton = page.getByRole('button', { name: /^(Block user|Unblock user)$/ });
+        if (await toggleButton.count() === 0) return;
+        const isAlreadyBlocked = (await toggleButton.textContent())?.includes('Unblock');
+        if (!isAlreadyBlocked) {
+            // not blocked yet: block them first so there's something to unblock from the list
+            await toggleButton.click();
+            await page.waitForTimeout(300);
+            await page.getByRole('button', { name: /^Block$/ }).click();
+            await page.waitForTimeout(1000);
+        } else {
+            // already blocked from a previous run: just close the menu and move on
+            await kebabButton.click();
+            await page.waitForTimeout(300);
+        }
+
+        await page.goto('/profile/blocked');
+        await page.waitForTimeout(1500);
+
+        const blockedRow = page.locator('button', { hasText: 'Unblock' }).first();
+        if (await blockedRow.count() === 0) return;
+        await blockedRow.click();
+        await page.waitForTimeout(300);
+
+        await page.getByRole('button', { name: 'Unblock', exact: true }).last().click();
+        await page.waitForTimeout(1000);
+
+        await expect(page.locator('text=/unblocked/i')).toBeVisible();
+    });
+});
+
 test.describe('Buyer Reviews', () => {
     test('can navigate to leave a seller review on a completed order', async ({ page }) => {
         await page.goto('/orders');
