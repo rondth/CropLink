@@ -4,7 +4,7 @@ import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-im
 import 'react-image-crop/dist/ReactCrop.css';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle } from 'lucide-react';
+import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle, Ban, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import ReviewCard from '@/components/marketplace/ReviewCard';
@@ -470,6 +470,18 @@ export default function Profile() {
                     </>
                 )}
             </div>
+
+            {/* blocked users */}
+            <button
+                onClick={() => router.push('/profile/blocked')}
+                className="mx-5 mt-3 w-[calc(100%-40px)] bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 flex items-center justify-between active:scale-[0.99] transition-transform"
+            >
+                <div className="flex items-center gap-2">
+                    <Ban className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-black text-gray-800">Blocked Users</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+            </button>
 
             {/* logout */}
             <button
