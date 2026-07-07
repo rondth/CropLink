@@ -132,16 +132,21 @@ export default function PublicProfile() {
 
     useEffect(() => {
         if (!userId) return;
-        Promise.all([
-            api.get(`/auth/profile/${userId}`),
-            api.get('/listings/'),
-            api.get(`/reviews/seller/${userId}`),
-        ]).then(([profileRes, listingsRes, reviewsRes]) => {
-            setProfile(profileRes.data);
-            setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
-            setReviews(reviewsRes.data);
+        api.get(`/auth/profile/${userId}`).then(profileRes => {
+            const profileData = profileRes.data;
+            setProfile(profileData);
+
+            if (profileData.role !== 'seller') return;
+
+            return Promise.all([
+                api.get('/listings/'),
+                api.get(`/reviews/seller/${userId}`),
+            ]).then(([listingsRes, reviewsRes]) => {
+                setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
+                setReviews(reviewsRes.data);
+            });
         }).catch(err => {
-            console.error("Failed to load seller profile:", err);
+            console.error("Failed to load profile:", err);
         }).finally(() => {
             setIsLoading(false);
         });
@@ -257,24 +262,26 @@ export default function PublicProfile() {
             </div>
 
             {/* stats */}
-            <div className="mx-5 mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 flex items-center justify-around">
-                <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
-                    <span className="text-xl font-black text-gray-800">{profile.num_listings ?? 0}</span>
+            {profile.role === 'seller' && (
+                <div className="mx-5 mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 flex items-center justify-around">
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
+                        <span className="text-xl font-black text-gray-800">{profile.num_listings ?? 0}</span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-100" />
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
+                        <span className="text-xl font-black text-gray-800">{reviews.length}</span>
+                    </div>
+                    <div className="w-px h-8 bg-gray-100" />
+                    <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
+                        <span className="text-xl font-black text-amber-500">
+                            {avgRating ? `★ ${avgRating}` : '★ —'}
+                        </span>
+                    </div>
                 </div>
-                <div className="w-px h-8 bg-gray-100" />
-                <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                    <span className="text-xl font-black text-gray-800">{reviews.length}</span>
-                </div>
-                <div className="w-px h-8 bg-gray-100" />
-                <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
-                    <span className="text-xl font-black text-amber-500">
-                        {avgRating ? `★ ${avgRating}` : '★ —'}
-                    </span>
-                </div>
-            </div>
+            )}
 
             {/* bio */}
             <div className="mx-5 mt-3 bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
@@ -285,56 +292,60 @@ export default function PublicProfile() {
             </div>
 
             {/* reviews */}
-            <div className="mt-5 mx-5">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-black text-gray-800">Reviews</h2>
-                    {avgRating && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-amber-400 text-sm">★</span>
-                            <span className="text-sm font-black text-gray-800">{avgRating}</span>
-                            <span className="text-xs text-gray-400">({reviews.length})</span>
-                        </div>
+            {profile.role === 'seller' && (
+                <div className="mt-5 mx-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-sm font-black text-gray-800">Reviews</h2>
+                        {avgRating && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-amber-400 text-sm">★</span>
+                                <span className="text-sm font-black text-gray-800">{avgRating}</span>
+                                <span className="text-xs text-gray-400">({reviews.length})</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {reviews.length === 0 ? (
+                        <p className="text-xs text-center text-gray-400 py-6">No reviews yet.</p>
+                    ) : (
+                        <>
+                            <div className="flex flex-col gap-2">
+                                {reviews.slice(0, 3).map(review => (
+                                    <ReviewCard
+                                        key={review.id}
+                                        reviewerId={review.reviewer_id}
+                                        reviewerName={review.reviewer?.name || 'Anonymous'}
+                                        reviewerAvatar={review.reviewer?.profile_picture_url}
+                                        rating={review.rating}
+                                        content={review.content}
+                                        createdAt={review.created_at}
+                                    />
+                                ))}
+                            </div>
+                            {reviews.length > 3 && (
+                                <button
+                                    onClick={() => router.push(`/user/${userId}/reviews`)}
+                                    className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
+                                >
+                                    View all {reviews.length} reviews
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
-
-                {reviews.length === 0 ? (
-                    <p className="text-xs text-center text-gray-400 py-6">No reviews yet.</p>
-                ) : (
-                    <>
-                        <div className="flex flex-col gap-2">
-                            {reviews.slice(0, 3).map(review => (
-                                <ReviewCard
-                                    key={review.id}
-                                    reviewerId={review.reviewer_id}
-                                    reviewerName={review.reviewer?.name || 'Anonymous'}
-                                    reviewerAvatar={review.reviewer?.profile_picture_url}
-                                    rating={review.rating}
-                                    content={review.content}
-                                    createdAt={review.created_at}
-                                />
-                            ))}
-                        </div>
-                        {reviews.length > 3 && (
-                            <button
-                                onClick={() => router.push(`/user/${userId}/reviews`)}
-                                className="w-full mt-3 py-2.5 text-xs font-bold text-CropLink-primary border border-CropLink-primary/20 rounded-xl bg-CropLink-primary/5 active:scale-[0.98] transition-all"
-                            >
-                                View all {reviews.length} reviews
-                            </button>
-                        )}
-                    </>
-                )}
-            </div>
+            )}
 
             {/* listings */}
-            <div className="mt-5">
-                <h2 className="text-sm font-black text-gray-800 px-5 mb-3">Active Listings</h2>
-                {listings.length === 0 ? (
-                    <p className="text-xs text-center text-gray-400 py-8">No active listings.</p>
-                ) : (
-                    <ProductGrid products={listings} onProductClick={setSelectedProduct} />
-                )}
-            </div>
+            {profile.role === 'seller' && (
+                <div className="mt-5">
+                    <h2 className="text-sm font-black text-gray-800 px-5 mb-3">Active Listings</h2>
+                    {listings.length === 0 ? (
+                        <p className="text-xs text-center text-gray-400 py-8">No active listings.</p>
+                    ) : (
+                        <ProductGrid products={listings} onProductClick={setSelectedProduct} />
+                    )}
+                </div>
+            )}
 
             {/* block confirmation */}
             {blockConfirmOpen && (
