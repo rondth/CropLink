@@ -112,3 +112,48 @@ export const cancelTransaction = async (txn_id: string): Promise<{ status: strin
     const response = await api.post<{ status: string }>(`/transactions/${txn_id}/cancel`);
     return response.data;
 }
+
+// ====== Messaging API ======
+
+export interface ConversationListing {
+    id: string;
+    crop_name: string;
+    photo_url: string | null;
+}
+
+export interface ConversationParticipant {
+    user_id: string;
+    name: string | null;
+    profile_picture_url: string | null;
+}
+
+export interface ConversationLastMessage {
+    content: string;
+    created_at: string;
+}
+
+export interface Conversation {
+    id: string;
+    listing: ConversationListing | null;
+    other_participant: ConversationParticipant | null;
+    last_message: ConversationLastMessage | null;
+    unread_count: number;
+}
+
+export interface ConversationRecord {
+    id: string;
+    listing_id: string;
+    buyer_id: string;
+    seller_id: string;
+    last_message_at: string | null;
+}
+
+export const getConversations = async (): Promise<Conversation[]> => {
+    const response = await api.get<Conversation[]>('/conversations');
+    return response.data;
+}
+
+export const createConversation = async (listing_id: string): Promise<ConversationRecord> => {
+    const response = await api.post<ConversationRecord>('/conversations', { listing_id });
+    return response.data;
+}

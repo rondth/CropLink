@@ -177,11 +177,42 @@ class TestListConversations:
                     "listing": {"id": "listing-1", "crop_name": "Tomato", "photo_url": None},
                     "buyer": {"user_id": "buyer-1", "name": "Buyer One", "profile_picture_url": None},
                     "seller": {"user_id": "blocked-seller", "name": "Blocked Seller", "profile_picture_url": None},
-                    "messages": [],
+                    "messages": [
+                        {
+                            "content": "hi",
+                            "created_at": "2026-07-01T00:00:00Z",
+                            "sender_id": "blocked-seller",
+                            "read_at": None,
+                        }
+                    ],
                 }
             ]
         )
         _mock_blocks_table(supabase_mock, blocked_by_a=[{"blocked_id": "blocked-seller"}])
+
+        response = client.get("/api/v1/conversations/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_excludes_conversations_with_no_messages_yet(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        supabase_mock.table(
+            "conversations"
+        ).select.return_value.or_.return_value.order.return_value.execute.return_value = SimpleNamespace(
+            data=[
+                {
+                    "id": "convo-1",
+                    "buyer_id": "buyer-1",
+                    "seller_id": "seller-1",
+                    "listing": {"id": "listing-1", "crop_name": "Tomato", "photo_url": None},
+                    "buyer": {"user_id": "buyer-1", "name": "Buyer One", "profile_picture_url": None},
+                    "seller": {"user_id": "seller-1", "name": "Seller One", "profile_picture_url": None},
+                    "messages": [],
+                }
+            ]
+        )
+        _mock_blocks_table(supabase_mock)
 
         response = client.get("/api/v1/conversations/")
 

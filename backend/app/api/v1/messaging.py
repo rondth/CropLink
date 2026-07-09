@@ -106,17 +106,18 @@ def list_conversations(user_id: str) -> list[dict]:
 
     result = []
     for convo in conversations:
+        messages = sorted(convo.get("messages") or [], key=lambda m: m["created_at"], reverse=True)
+        if not messages:
+            continue
+
         other = convo["seller"] if convo["buyer_id"] == user_id else convo["buyer"]
         if (other or {}).get("user_id") in blocked_ids:
             continue
 
-        messages = sorted(convo.get("messages") or [], key=lambda m: m["created_at"], reverse=True)
-        last_message = None
-        if messages:
-            last_message = {
-                "content": messages[0]["content"][:PREVIEW_LENGTH],
-                "created_at": messages[0]["created_at"],
-            }
+        last_message = {
+            "content": messages[0]["content"][:PREVIEW_LENGTH],
+            "created_at": messages[0]["created_at"],
+        }
         unread_count = sum(
             1 for m in messages if m["sender_id"] != user_id and m.get("read_at") is None
         )

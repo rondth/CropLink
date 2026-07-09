@@ -27,7 +27,7 @@ export default function PricesDashboard() {
     useEffect(() => {
         const fetchPrices = async () => {
             try {
-                const currency = user?.preffered_currency || 'USD';
+                const currency = user?.preferred_currency || 'USD';
                 const response = await api.get(`/listings/prices?currency=${currency}`);
                 setPrices(response.data);
             } catch (error) {
@@ -111,7 +111,7 @@ export default function PricesDashboard() {
                     </div>
                 </div>
                 
-                <PriceTrendChart cropId={selectedMarketData.crop_id} currency={user?.preffered_currency || 'USD'} />
+                <PriceTrendChart cropId={selectedMarketData.crop_id} currency={user?.preferred_currency || 'USD'} />
 
                 {isLoadingListings ? (
                     <div className="flex-1 flex items-center justify-center">
@@ -138,7 +138,7 @@ export default function PricesDashboard() {
                 
                 <div className="inline-flex items-center gap-1.5 mb-1 py-1">
                     <span className="text-sm font-bold text-[#2d5a3d] uppercase tracking-wider">Currency:</span>
-                    <span className="text-sm font-black text-[#1f422b]">{user?.preffered_currency || 'USD'}</span>
+                    <span className="text-sm font-black text-[#1f422b]">{user?.preferred_currency || 'USD'}</span>
                 </div>
 
                 <p className="text-xs mt-2 text-gray-500 italic font-medium text-center"> * Click the price card for details. </p>

@@ -31,6 +31,24 @@ export function filterProducts(
     });
 }
 
+export function timeAgo(dateString: string): string {
+    const then = new Date(dateString).getTime();
+    const diffSeconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+
+    if (diffSeconds < 60) return 'now';
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d`;
+    const diffWeeks = Math.floor(diffDays / 7);
+    if (diffWeeks < 5) return `${diffWeeks}w`;
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths < 12) return `${diffMonths}mo`;
+    return `${Math.floor(diffDays / 365)}y`;
+}
+
 export function formatAmount(n: number): { display: string; suffix: string } {
     if (Math.abs(n) >= 1e9) return { display: (n / 1e9).toFixed(1).replace(/\.0$/, ''), suffix: 'B' };
     if (Math.abs(n) >= 1e6) return { display: (n / 1e6).toFixed(1).replace(/\.0$/, ''), suffix: 'M' };
