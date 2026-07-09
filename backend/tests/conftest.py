@@ -1,3 +1,14 @@
+import os
+
+# Settings() is instantiated at import time in app/core/config.py, so `from main
+# import app` below crashes without these vars set; CI and fresh clones have no .env.
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_ANON_KEY", "test-anon-key")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
+os.environ.setdefault("SUPABASE_JWT_PUBLIC_KEY", '{"keys": []}')
+os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_dummy")
+os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_dummy")
+
 from unittest.mock import MagicMock
 
 import pytest
