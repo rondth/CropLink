@@ -62,5 +62,17 @@ export function useConversations(currentUserId: string | null) {
         };
     }, [currentUserId]);
 
-    return { conversations, isLoading, error, fetchConversations };
+    // Called when the user opens a thread, so the inbox row clears
+    // immediately rather than waiting on the next fetch/Realtime event.
+    const markReadLocally = useCallback((conversationId: string) => {
+        setConversations((prev) => {
+            const idx = prev.findIndex((c) => c.id === conversationId);
+            if (idx === -1 || prev[idx].unread_count === 0) return prev;
+            const next = [...prev];
+            next[idx] = { ...next[idx], unread_count: 0 };
+            return next;
+        });
+    }, []);
+
+    return { conversations, isLoading, error, fetchConversations, markReadLocally };
 }

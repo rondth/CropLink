@@ -437,3 +437,107 @@ class TestMessageContentValidation:
         )
 
         assert response.status_code == 201
+
+
+class TestMarkConversationRead:
+    def _mock_update_result(self, supabase_mock, rows):
+        supabase_mock.table(
+            "messages"
+        ).update.return_value.eq.return_value.neq.return_value.is_.return_value.execute.return_value = (
+            SimpleNamespace(data=rows)
+        )
+
+    def test_requires_authentication(self, client):
+        response = client.patch("/api/v1/conversations/convo-1/read")
+
+        assert response.status_code == 401
+
+    def test_404_when_conversation_missing(self, authed_client, supabase_mock):
+        _mock_conversation_lookup(supabase_mock, None)
+
+        response = authed_client.patch("/api/v1/conversations/convo-1/read")
+
+        assert response.status_code == 404
+
+    def test_403_when_not_participant(self, authed_as, supabase_mock):
+        client = authed_as(user_id="stranger")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+
+        response = client.patch("/api/v1/conversations/convo-1/read")
+
+        assert response.status_code == 403
+
+    def test_marks_only_messages_from_other_participant_as_read(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+        self._mock_update_result(supabase_mock, [{"id": "msg-1"}, {"id": "msg-2"}])
+
+        response = client.patch("/api/v1/conversations/convo-1/read")
+
+        assert response.status_code == 200
+        assert response.json() == {"marked_count": 2}
+
+        update_call = supabase_mock.table("messages").update
+        update_call.return_value.eq.assert_called_once_with("conversation_id", "convo-1")
+        update_call.return_value.eq.return_value.neq.assert_called_once_with("sender_id", "buyer-1")
+        update_call.return_value.eq.return_value.neq.return_value.is_.assert_called_once_with("read_at", None)
+
+    def test_idempotent_when_called_twice(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+
+        self._mock_update_result(supabase_mock, [{"id": "msg-1"}])
+        first = client.patch("/api/v1/conversations/convo-1/read")
+        assert first.json() == {"marked_count": 1}
+
+        # Second call: nothing left with read_at IS NULL for this conversation.
+        self._mock_update_result(supabase_mock, [])
+        second = client.patch("/api/v1/conversations/convo-1/read")
+
+        assert second.status_code == 200
+        assert second.json() == {"marked_count": 0}
+
+
+class TestUnreadCount:
+    def test_requires_authentication(self, client):
+        response = client.get("/api/v1/conversations/unread-count")
+
+        assert response.status_code == 401
+
+    def test_returns_total_across_conversations(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        supabase_mock.table(
+            "messages"
+        ).select.return_value.neq.return_value.is_.return_value.or_.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "msg-1"}, {"id": "msg-2"}], count=7)
+        )
+
+        response = client.get("/api/v1/conversations/unread-count")
+
+        assert response.status_code == 200
+        assert response.json() == {"total": 7}
+
+        select_call = supabase_mock.table("messages").select
+        select_call.return_value.neq.assert_called_once_with("sender_id", "buyer-1")
+        select_call.return_value.neq.return_value.is_.assert_called_once_with("read_at", None)
+        select_call.return_value.neq.return_value.is_.return_value.or_.assert_called_once_with(
+            "buyer_id.eq.buyer-1,seller_id.eq.buyer-1", reference_table="conversations"
+        )
+
+    def test_returns_zero_when_count_is_none(self, authed_client, supabase_mock):
+        supabase_mock.table(
+            "messages"
+        ).select.return_value.neq.return_value.is_.return_value.or_.return_value.execute.return_value = (
+            SimpleNamespace(data=[], count=None)
+        )
+
+        response = authed_client.get("/api/v1/conversations/unread-count")
+
+        assert response.status_code == 200
+        assert response.json() == {"total": 0}

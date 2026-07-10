@@ -192,3 +192,8 @@ export const sendMessage = async (conversationId: string, content: string): Prom
     const response = await api.post<Message>(`/conversations/${conversationId}/messages`, { content });
     return response.data;
 }
+
+export const markConversationRead = async (conversationId: string): Promise<{ marked_count: number }> => {
+    const response = await api.patch<{ marked_count: number }>(`/conversations/${conversationId}/read`);
+    return response.data;
+}

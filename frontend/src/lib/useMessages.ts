@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getMessages, sendMessage as sendMessageApi, Message } from './api';
+import { getMessages, markConversationRead, sendMessage as sendMessageApi, Message } from './api';
 import { supabase } from './supabase';
 
 export interface ThreadMessage extends Message {
@@ -19,6 +19,9 @@ const RECONCILE_WINDOW_MS = 10000;
 // How long the Realtime channel may stay non-'connected' before we fall
 // back to polling as a safety net.
 const DISCONNECT_GRACE_MS = 10000;
+// Debounce window for mark-as-read calls so a burst of incoming messages
+// collapses into a single PATCH /conversations/{id}/read request.
+const READ_DEBOUNCE_MS = 800;
 
 const toAscending = (rows: Message[]): ThreadMessage[] =>
     [...rows].reverse().map((m) => ({ ...m, status: 'sent' as const }));
@@ -38,6 +41,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
     const isLoadingOlderRef = useRef(false);
     const hasMoreRef = useRef(true);
     const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const loadInitial = useCallback(() => {
         if (!conversationId) return;
@@ -60,6 +64,34 @@ export function useMessages(conversationId: string | null, currentUserId: string
     useEffect(() => {
         loadInitial();
     }, [loadInitial]);
+
+    // Debounces PATCH /conversations/{id}/read so a burst of incoming
+    // messages collapses into one request. Skipped entirely while the tab
+    // is hidden -- we only mark messages read while the user can see them.
+    const scheduleMarkRead = useCallback(() => {
+        if (!conversationId) return;
+        if (document.visibilityState !== 'visible') return;
+        if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+        markReadTimerRef.current = setTimeout(() => {
+            markReadTimerRef.current = null;
+            markConversationRead(conversationId).catch(() => {});
+        }, READ_DEBOUNCE_MS);
+    }, [conversationId]);
+
+    // Mark read once when the thread mounts (or the conversation changes).
+    useEffect(() => {
+        if (!conversationId || notFound || forbidden) return;
+        markConversationRead(conversationId).catch(() => {});
+    }, [conversationId, notFound, forbidden]);
+
+    useEffect(() => {
+        return () => {
+            if (markReadTimerRef.current) {
+                clearTimeout(markReadTimerRef.current);
+                markReadTimerRef.current = null;
+            }
+        };
+    }, [conversationId]);
 
     // Applies a single message delivered over the Realtime channel: skips it
     // if we already have that server id (e.g. our own send() already
@@ -88,6 +120,16 @@ export function useMessages(conversationId: string | null, currentUserId: string
                 a.created_at.localeCompare(b.created_at)
             );
         });
+
+        if (incoming.sender_id !== currentUserId) {
+            scheduleMarkRead();
+        }
+    }, [currentUserId, scheduleMarkRead]);
+
+    // Patches read_at in place when the Realtime channel delivers an UPDATE
+    // (e.g. the other participant's PATCH /read set read_at on our message).
+    const applyMessageUpdate = useCallback((updated: Message) => {
+        setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, read_at: updated.read_at } : m)));
     }, []);
 
     // Realtime subscription, scoped to this conversation.
@@ -108,6 +150,16 @@ export function useMessages(conversationId: string | null, currentUserId: string
                 },
                 (payload) => applyIncomingMessage(payload.new as Message)
             )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${conversationId}`,
+                },
+                (payload) => applyMessageUpdate(payload.new as Message)
+            )
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') setConnectionStatus('connected');
                 else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
@@ -118,7 +170,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [conversationId, notFound, forbidden, applyIncomingMessage]);
+    }, [conversationId, notFound, forbidden, applyIncomingMessage, applyMessageUpdate]);
 
     // Safety-net polling: only kicks in once the channel has been anything
     // other than 'connected' for DISCONNECT_GRACE_MS, and turns off again as

@@ -177,6 +177,34 @@ def get_conversation_messages(conversation_id: str, user_id: str, limit: int, be
     return query.execute().data
 
 
+def mark_conversation_read(conversation_id: str, user_id: str) -> int:
+    conversation = _get_conversation_or_404(conversation_id)
+    _ensure_participant(conversation, user_id)
+
+    now = datetime.now(timezone.utc).isoformat()
+    response = (
+        supabase.table("messages")
+        .update({"read_at": now})
+        .eq("conversation_id", conversation_id)
+        .neq("sender_id", user_id)
+        .is_("read_at", None)
+        .execute()
+    )
+    return len(response.data or [])
+
+
+def get_unread_total(user_id: str) -> int:
+    response = (
+        supabase.table("messages")
+        .select("id, conversations!inner(buyer_id, seller_id)", count="exact")
+        .neq("sender_id", user_id)
+        .is_("read_at", None)
+        .or_(f"buyer_id.eq.{user_id},seller_id.eq.{user_id}", reference_table="conversations")
+        .execute()
+    )
+    return response.count or 0
+
+
 def create_message(conversation_id: str, sender_id: str, content: str) -> dict:
     conversation = _get_conversation_or_404(conversation_id)
     _ensure_participant(conversation, sender_id)
@@ -217,6 +245,14 @@ def get_conversations(user_id: str = Depends(get_current_user_id)):
     return list_conversations(user_id)
 
 
+# GET /conversations/unread-count
+# Must stay registered before GET /{conversation_id}, otherwise that route's
+# path param would swallow this literal path first.
+@router.get("/unread-count")
+def get_unread_count(user_id: str = Depends(get_current_user_id)):
+    return {"total": get_unread_total(user_id)}
+
+
 # GET /conversations/{conversation_id}
 @router.get("/{conversation_id}")
 def get_conversation(conversation_id: str, user_id: str = Depends(get_current_user_id)):
@@ -242,3 +278,9 @@ def send_message(
     user_id: str = Depends(get_current_user_id),
 ):
     return create_message(conversation_id, user_id, data.content)
+
+
+# PATCH /conversations/{conversation_id}/read
+@router.patch("/{conversation_id}/read")
+def read_conversation(conversation_id: str, user_id: str = Depends(get_current_user_id)):
+    return {"marked_count": mark_conversation_read(conversation_id, user_id)}

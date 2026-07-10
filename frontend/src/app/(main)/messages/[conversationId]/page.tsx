@@ -35,6 +35,23 @@ function SendIcon() {
     );
 }
 
+function CheckIcon({ className }: { className?: string }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <path d="M20 6 9 17l-5-5" />
+        </svg>
+    );
+}
+
+function CheckCheckIcon({ className }: { className?: string }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <path d="M18 6 7 17l-5-5" />
+            <path d="m22 10-7.5 7.5L13 16" />
+        </svg>
+    );
+}
+
 function ThreadSkeleton() {
     return (
         <div className="flex flex-col min-h-full">
@@ -287,8 +304,10 @@ export default function ConversationThreadPage() {
                 ) : (
                     messages.map((m, i) => {
                         const prev = messages[i - 1];
+                        const next = messages[i + 1];
                         const showDivider = !prev || !isSameCalendarDay(prev.created_at, m.created_at);
                         const isOwn = m.sender_id === user?.user_id;
+                        const isLastInOwnRun = isOwn && (!next || next.sender_id !== m.sender_id);
 
                         return (
                             <React.Fragment key={m.id}>
@@ -320,9 +339,18 @@ export default function ConversationThreadPage() {
                                             ) : m.status === 'sending' ? (
                                                 <span className="text-[10px] text-gray-400">Sending…</span>
                                             ) : (
-                                                <span className="text-[10px] text-gray-400">
-                                                    {new Date(m.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                                                </span>
+                                                <>
+                                                    <span className="text-[10px] text-gray-400">
+                                                        {new Date(m.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                                                    </span>
+                                                    {isLastInOwnRun && (
+                                                        m.read_at ? (
+                                                            <CheckCheckIcon className="text-CropLink-primary" />
+                                                        ) : (
+                                                            <CheckIcon className="text-gray-400" />
+                                                        )
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>

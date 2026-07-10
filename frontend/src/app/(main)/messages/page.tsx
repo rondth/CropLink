@@ -22,7 +22,7 @@ function MessagesContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-    const { conversations, isLoading, error, fetchConversations } = useConversations(user?.user_id ?? null);
+    const { conversations, isLoading, error, fetchConversations, markReadLocally } = useConversations(user?.user_id ?? null);
     const [toast, setToast] = useState<string | null>(null);
 
     useEffect(() => {
@@ -106,7 +106,10 @@ function MessagesContent() {
                         return (
                             <button
                                 key={c.id}
-                                onClick={() => router.push(`/messages/${c.id}`)}
+                                onClick={() => {
+                                    markReadLocally(c.id);
+                                    router.push(`/messages/${c.id}`);
+                                }}
                                 className="flex items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
                             >
                                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 shrink-0">
