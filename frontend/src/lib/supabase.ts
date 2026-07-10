@@ -8,10 +8,3 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// TEMP: expose the client for manual Realtime/RLS verification in the
-// browser console (e.g. `await window.supabase.channel(...)`). Remove once
-// the Realtime migration in supabase/migrations has been verified.
-if (typeof window !== 'undefined') {
-    (window as unknown as { supabase: typeof supabase }).supabase = supabase;
-}
