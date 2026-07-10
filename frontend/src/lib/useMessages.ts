@@ -1,14 +1,24 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessages, sendMessage as sendMessageApi, Message } from './api';
+import { supabase } from './supabase';
 
 export interface ThreadMessage extends Message {
     status: 'sent' | 'sending' | 'failed';
     clientId?: string;
 }
 
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
+
 const POLL_INTERVAL_MS = 5000;
 const PAGE_SIZE = 50;
+// How close an optimistic message's client-side timestamp must be to an
+// incoming server message (same sender + content) to be treated as the same
+// message rather than a coincidental duplicate.
+const RECONCILE_WINDOW_MS = 10000;
+// How long the Realtime channel may stay non-'connected' before we fall
+// back to polling as a safety net.
+const DISCONNECT_GRACE_MS = 10000;
 
 const toAscending = (rows: Message[]): ThreadMessage[] =>
     [...rows].reverse().map((m) => ({ ...m, status: 'sent' as const }));
@@ -20,11 +30,14 @@ export function useMessages(conversationId: string | null, currentUserId: string
     const [hasMore, setHasMore] = useState(true);
     const [notFound, setNotFound] = useState(false);
     const [forbidden, setForbidden] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+    const [pollingActive, setPollingActive] = useState(false);
 
     const messagesRef = useRef<ThreadMessage[]>([]);
     messagesRef.current = messages;
     const isLoadingOlderRef = useRef(false);
     const hasMoreRef = useRef(true);
+    const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const loadInitial = useCallback(() => {
         if (!conversationId) return;
@@ -48,6 +61,92 @@ export function useMessages(conversationId: string | null, currentUserId: string
         loadInitial();
     }, [loadInitial]);
 
+    // Applies a single message delivered over the Realtime channel: skips it
+    // if we already have that server id (e.g. our own send() already
+    // resolved it), replaces a matching optimistic placeholder in place if
+    // one is pending, otherwise appends it.
+    const applyIncomingMessage = useCallback((incoming: Message) => {
+        setMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) return prev;
+
+            const incomingTime = new Date(incoming.created_at).getTime();
+            const optimisticIdx = prev.findIndex(
+                (m) =>
+                    m.status !== 'sent' &&
+                    m.sender_id === incoming.sender_id &&
+                    m.content === incoming.content &&
+                    Math.abs(new Date(m.created_at).getTime() - incomingTime) < RECONCILE_WINDOW_MS
+            );
+
+            if (optimisticIdx !== -1) {
+                const next = [...prev];
+                next[optimisticIdx] = { ...incoming, status: 'sent', clientId: prev[optimisticIdx].clientId };
+                return next;
+            }
+
+            return [...prev, { ...incoming, status: 'sent' as const }].sort((a, b) =>
+                a.created_at.localeCompare(b.created_at)
+            );
+        });
+    }, []);
+
+    // Realtime subscription, scoped to this conversation.
+    useEffect(() => {
+        if (!conversationId || notFound || forbidden) return;
+
+        setConnectionStatus('connecting');
+
+        const channel = supabase
+            .channel(`messages:conversation:${conversationId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${conversationId}`,
+                },
+                (payload) => applyIncomingMessage(payload.new as Message)
+            )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') setConnectionStatus('connected');
+                else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                    setConnectionStatus('disconnected');
+                }
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [conversationId, notFound, forbidden, applyIncomingMessage]);
+
+    // Safety-net polling: only kicks in once the channel has been anything
+    // other than 'connected' for DISCONNECT_GRACE_MS, and turns off again as
+    // soon as it reconnects.
+    useEffect(() => {
+        if (connectionStatus === 'connected') {
+            if (disconnectTimerRef.current) {
+                clearTimeout(disconnectTimerRef.current);
+                disconnectTimerRef.current = null;
+            }
+            setPollingActive(false);
+            return;
+        }
+
+        if (disconnectTimerRef.current) return;
+        disconnectTimerRef.current = setTimeout(() => {
+            setPollingActive(true);
+            disconnectTimerRef.current = null;
+        }, DISCONNECT_GRACE_MS);
+
+        return () => {
+            if (disconnectTimerRef.current) {
+                clearTimeout(disconnectTimerRef.current);
+                disconnectTimerRef.current = null;
+            }
+        };
+    }, [connectionStatus]);
+
     const mergeLatest = useCallback((rows: Message[]) => {
         const incoming = toAscending(rows);
         if (incoming.length === 0) return;
@@ -69,8 +168,10 @@ export function useMessages(conversationId: string | null, currentUserId: string
         });
     }, []);
 
+    // Polling fallback, gated behind `pollingActive` so it's dormant while
+    // the Realtime channel is healthy.
     useEffect(() => {
-        if (!conversationId || notFound || forbidden) return;
+        if (!conversationId || notFound || forbidden || !pollingActive) return;
 
         const poll = () => {
             if (document.visibilityState !== 'visible') return;
@@ -79,6 +180,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
                 .catch(() => {});
         };
 
+        poll();
         const interval = setInterval(poll, POLL_INTERVAL_MS);
         const onVisibility = () => {
             if (document.visibilityState === 'visible') poll();
@@ -89,7 +191,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
             clearInterval(interval);
             document.removeEventListener('visibilitychange', onVisibility);
         };
-    }, [conversationId, notFound, forbidden, mergeLatest]);
+    }, [conversationId, notFound, forbidden, pollingActive, mergeLatest]);
 
     const loadOlder = useCallback(() => {
         if (!conversationId || isLoadingOlderRef.current || !hasMoreRef.current) return;
@@ -155,5 +257,16 @@ export function useMessages(conversationId: string | null, currentUserId: string
             });
     }, [conversationId]);
 
-    return { messages, isLoading, isLoadingOlder, hasMore, notFound, forbidden, loadOlder, send, retry };
+    return {
+        messages,
+        isLoading,
+        isLoadingOlder,
+        hasMore,
+        notFound,
+        forbidden,
+        connectionStatus,
+        loadOlder,
+        send,
+        retry,
+    };
 }

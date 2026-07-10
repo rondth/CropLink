@@ -82,6 +82,7 @@ export default function ConversationThreadPage() {
         hasMore,
         notFound: messagesNotFound,
         forbidden: messagesForbidden,
+        connectionStatus,
         loadOlder,
         send,
         retry,
@@ -267,6 +268,12 @@ export default function ConversationThreadPage() {
             </div>
 
             <div className="flex-1 px-4 py-3 flex flex-col gap-1">
+                {connectionStatus !== 'connected' && (
+                    <div className="sticky top-0 z-10 flex justify-center py-1.5 mb-1 bg-amber-50 border border-amber-100 rounded-lg">
+                        <span className="text-[11px] font-bold text-amber-600">Reconnecting…</span>
+                    </div>
+                )}
+
                 {isLoadingOlder && (
                     <div className="flex justify-center py-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-CropLink-primary" />

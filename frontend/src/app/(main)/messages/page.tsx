@@ -1,8 +1,8 @@
 'use client';
-import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getConversations, Conversation } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { useConversations } from '@/lib/useConversations';
 import { timeAgo } from '@/lib/utils';
 
 function ConversationSkeletonRow() {
@@ -21,10 +21,8 @@ function ConversationSkeletonRow() {
 function MessagesContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { isAuthenticated, isLoading: authLoading } = useAuth();
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+    const { conversations, isLoading, error, fetchConversations } = useConversations(user?.user_id ?? null);
     const [toast, setToast] = useState<string | null>(null);
 
     useEffect(() => {
@@ -40,23 +38,9 @@ function MessagesContent() {
         return () => clearTimeout(t);
     }, [toast]);
 
-    const fetchConversations = useCallback(() => {
-        setIsLoading(true);
-        setError(null);
-        getConversations()
-            .then(setConversations)
-            .catch((err) => {
-                setError(err?.response?.data?.detail || 'Failed to load your conversations. Please try again.');
-            })
-            .finally(() => setIsLoading(false));
-    }, []);
-
     useEffect(() => {
         if (authLoading) return;
-        if (!isAuthenticated) {
-            setIsLoading(false);
-            return;
-        }
+        if (!isAuthenticated) return;
         fetchConversations();
     }, [authLoading, isAuthenticated, fetchConversations]);
 
