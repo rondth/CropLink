@@ -161,6 +161,7 @@ export interface Message {
     content: string;
     created_at: string;
     read_at: string | null;
+    client_msg_id?: string | null;
 }
 
 export const getConversations = async (): Promise<Conversation[]> => {
@@ -180,16 +181,23 @@ export const getConversation = async (conversationId: string): Promise<Conversat
 
 export const getMessages = async (
     conversationId: string,
-    params: { limit?: number; before?: string } = {}
+    params: { limit?: number; before?: string; after?: string } = {}
 ): Promise<Message[]> => {
     const response = await api.get<Message[]>(`/conversations/${conversationId}/messages`, {
-        params: { limit: params.limit ?? 50, before: params.before },
+        params: { limit: params.limit ?? 50, before: params.before, after: params.after },
     });
     return response.data;
 }
 
-export const sendMessage = async (conversationId: string, content: string): Promise<Message> => {
-    const response = await api.post<Message>(`/conversations/${conversationId}/messages`, { content });
+export const sendMessage = async (
+    conversationId: string,
+    content: string,
+    clientMsgId: string
+): Promise<Message> => {
+    const response = await api.post<Message>(`/conversations/${conversationId}/messages`, {
+        content,
+        client_msg_id: clientMsgId,
+    });
     return response.data;
 }
 

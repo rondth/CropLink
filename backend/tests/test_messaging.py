@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from postgrest.exceptions import APIError
+
 
 def _mock_blocks_table(supabase_mock, blocked_by_a=None, blockers_of_a=None):
     """Configure the `blocks` table mock for get_blocked_user_ids (two selects,
@@ -352,6 +354,24 @@ class TestGetMessages:
         assert response.status_code == 200
         assert response.json()[0]["id"] == "msg-0"
 
+    def test_applies_after_cursor(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+        supabase_mock.table(
+            "messages"
+        ).select.return_value.eq.return_value.order.return_value.limit.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "msg-2", "content": "newer"}])
+        )
+
+        response = client.get(
+            "/api/v1/conversations/convo-1/messages", params={"after": "2026-07-01T00:00:00Z"}
+        )
+
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == "msg-2"
+
 
 class TestSendMessage:
     def test_requires_authentication(self, client):
@@ -403,6 +423,106 @@ class TestSendMessage:
         assert response.json()["id"] == "msg-1"
         supabase_mock.table("conversations").update.assert_called_once()
         supabase_mock.table("conversations").update.return_value.eq.assert_called_once_with("id", "convo-1")
+
+
+class TestSendMessageIdempotency:
+    """POST with the same (conversation_id, client_msg_id) must not create a
+    second row: it makes client-side send retries after a dropped connection
+    safe to replay."""
+
+    CLIENT_MSG_ID = "11111111-1111-1111-1111-111111111111"
+
+    def _created_row(self):
+        return {
+            "id": "msg-1",
+            "conversation_id": "convo-1",
+            "sender_id": "buyer-1",
+            "content": "hi",
+            "client_msg_id": self.CLIENT_MSG_ID,
+        }
+
+    def test_rejects_invalid_client_msg_id_format(self, authed_client):
+        response = authed_client.post(
+            "/api/v1/conversations/convo-1/messages",
+            json={"content": "hi", "client_msg_id": "not-a-uuid"},
+        )
+
+        assert response.status_code == 422
+
+    def test_second_call_with_same_client_msg_id_returns_existing_row_and_200(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+        _mock_no_active_block(supabase_mock)
+
+        created_row = self._created_row()
+        lookup_execute = (
+            supabase_mock.table("messages").select.return_value.eq.return_value.eq.return_value.execute
+        )
+        lookup_execute.side_effect = [
+            SimpleNamespace(data=[]),  # first POST: not sent yet
+            SimpleNamespace(data=[created_row]),  # second POST (retry): already exists
+        ]
+        supabase_mock.table("messages").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[created_row]
+        )
+
+        first = client.post(
+            "/api/v1/conversations/convo-1/messages",
+            json={"content": "hi", "client_msg_id": self.CLIENT_MSG_ID},
+        )
+        second = client.post(
+            "/api/v1/conversations/convo-1/messages",
+            json={"content": "hi", "client_msg_id": self.CLIENT_MSG_ID},
+        )
+
+        assert first.status_code == 201
+        assert first.json()["id"] == "msg-1"
+        assert second.status_code == 200
+        assert second.json()["id"] == "msg-1"
+
+        # Exactly one row was ever inserted -- the second call replayed it.
+        supabase_mock.table("messages").insert.assert_called_once()
+        insert_payload = supabase_mock.table("messages").insert.call_args.args[0]
+        assert insert_payload["client_msg_id"] == self.CLIENT_MSG_ID
+
+    def test_concurrent_retry_race_falls_back_to_existing_row(self, authed_as, supabase_mock):
+        """Both requests pass the pre-insert existence check (neither sees the
+        other's row yet), so the second insert hits the unique index and
+        raises a Postgres 23505 -- the handler must recover by re-reading the
+        row the first insert created, not bubble up a 500."""
+        client = authed_as(user_id="buyer-1")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+        _mock_no_active_block(supabase_mock)
+
+        created_row = self._created_row()
+        lookup_execute = (
+            supabase_mock.table("messages").select.return_value.eq.return_value.eq.return_value.execute
+        )
+        lookup_execute.side_effect = [
+            SimpleNamespace(data=[]),  # pre-insert check, both requests
+            SimpleNamespace(data=[created_row]),  # post-conflict re-read
+        ]
+        supabase_mock.table("messages").insert.return_value.execute.side_effect = [
+            SimpleNamespace(data=[created_row]),
+            APIError({"message": "duplicate key value", "code": "23505"}),
+        ]
+
+        first = client.post(
+            "/api/v1/conversations/convo-1/messages",
+            json={"content": "hi", "client_msg_id": self.CLIENT_MSG_ID},
+        )
+        second = client.post(
+            "/api/v1/conversations/convo-1/messages",
+            json={"content": "hi", "client_msg_id": self.CLIENT_MSG_ID},
+        )
+
+        assert first.status_code == 201
+        assert second.status_code == 200
+        assert second.json()["id"] == "msg-1"
 
 
 class TestMessageContentValidation:

@@ -1,12 +1,16 @@
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from postgrest.exceptions import APIError
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.dependencies import get_current_user_id
 from app.core.supabase import supabase
 from app.utils import get_blocked_user_ids, is_blocked_between
+
+UNIQUE_VIOLATION = "23505"
 
 router = APIRouter(prefix="/conversations", tags=["messaging"])
 
@@ -35,6 +39,7 @@ class ConversationCreate(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
+    client_msg_id: Optional[UUID] = None
 
     @field_validator("content")
     @classmethod
@@ -160,7 +165,9 @@ def get_conversation_detail(conversation_id: str, user_id: str) -> dict:
     }
 
 
-def get_conversation_messages(conversation_id: str, user_id: str, limit: int, before: Optional[str]) -> list[dict]:
+def get_conversation_messages(
+    conversation_id: str, user_id: str, limit: int, before: Optional[str], after: Optional[str] = None
+) -> list[dict]:
     conversation = _get_conversation_or_404(conversation_id)
     _ensure_participant(conversation, user_id)
 
@@ -173,6 +180,8 @@ def get_conversation_messages(conversation_id: str, user_id: str, limit: int, be
     )
     if before:
         query = query.lt("created_at", before)
+    if after:
+        query = query.gt("created_at", after)
 
     return query.execute().data
 
@@ -205,7 +214,23 @@ def get_unread_total(user_id: str) -> int:
     return response.count or 0
 
 
-def create_message(conversation_id: str, sender_id: str, content: str) -> dict:
+def _find_message_by_client_id(conversation_id: str, client_msg_id: str) -> Optional[dict]:
+    response = (
+        supabase.table("messages")
+        .select("*")
+        .eq("conversation_id", conversation_id)
+        .eq("client_msg_id", client_msg_id)
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
+def create_message(
+    conversation_id: str, sender_id: str, content: str, client_msg_id: Optional[str] = None
+) -> tuple[dict, bool]:
+    """Returns (message, created) -- created is False when an existing row for
+    (conversation_id, client_msg_id) was returned instead of inserting, which
+    makes retried sends safe to replay."""
     conversation = _get_conversation_or_404(conversation_id)
     _ensure_participant(conversation, sender_id)
 
@@ -213,16 +238,30 @@ def create_message(conversation_id: str, sender_id: str, content: str) -> dict:
     if is_blocked_between(supabase, sender_id, other_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unable to send messages to this user")
 
-    message = supabase.table("messages").insert({
-        "conversation_id": conversation_id,
-        "sender_id": sender_id,
-        "content": content,
-    }).execute()
+    if client_msg_id:
+        existing = _find_message_by_client_id(conversation_id, client_msg_id)
+        if existing:
+            return existing, False
+
+    payload = {"conversation_id": conversation_id, "sender_id": sender_id, "content": content}
+    if client_msg_id:
+        payload["client_msg_id"] = client_msg_id
+
+    try:
+        message = supabase.table("messages").insert(payload).execute()
+    except APIError as err:
+        # Lost the race to a concurrent retry of the same client_msg_id: the
+        # unique index rejected our insert, so replay the row it created.
+        if client_msg_id and err.code == UNIQUE_VIOLATION:
+            existing = _find_message_by_client_id(conversation_id, client_msg_id)
+            if existing:
+                return existing, False
+        raise
 
     now = datetime.now(timezone.utc).isoformat()
     supabase.table("conversations").update({"last_message_at": now}).eq("id", conversation_id).execute()
 
-    return message.data[0]
+    return message.data[0], True
 
 
 # ENDPOINTS
@@ -265,9 +304,10 @@ def get_messages(
     conversation_id: str,
     limit: int = Query(50, ge=1, le=100),
     before: Optional[str] = None,
+    after: Optional[str] = None,
     user_id: str = Depends(get_current_user_id),
 ):
-    return get_conversation_messages(conversation_id, user_id, limit, before)
+    return get_conversation_messages(conversation_id, user_id, limit, before, after)
 
 
 # POST /conversations/{conversation_id}/messages
@@ -275,9 +315,14 @@ def get_messages(
 def send_message(
     conversation_id: str,
     data: MessageCreate,
+    response: Response,
     user_id: str = Depends(get_current_user_id),
 ):
-    return create_message(conversation_id, user_id, data.content)
+    message, created = create_message(
+        conversation_id, user_id, data.content, str(data.client_msg_id) if data.client_msg_id else None
+    )
+    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return message
 
 
 # PATCH /conversations/{conversation_id}/read

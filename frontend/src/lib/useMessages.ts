@@ -1,30 +1,32 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessages, markConversationRead, sendMessage as sendMessageApi, Message } from './api';
+import { mergeMessages, ThreadMessage } from './mergeMessages';
 import { supabase } from './supabase';
 
-export interface ThreadMessage extends Message {
-    status: 'sent' | 'sending' | 'failed';
-    clientId?: string;
-}
+export type { ThreadMessage };
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
 const POLL_INTERVAL_MS = 5000;
 const PAGE_SIZE = 50;
-// How close an optimistic message's client-side timestamp must be to an
-// incoming server message (same sender + content) to be treated as the same
-// message rather than a coincidental duplicate.
-const RECONCILE_WINDOW_MS = 10000;
-// How long the Realtime channel may stay non-'connected' before we fall
-// back to polling as a safety net.
 const DISCONNECT_GRACE_MS = 10000;
-// Debounce window for mark-as-read calls so a burst of incoming messages
-// collapses into a single PATCH /conversations/{id}/read request.
 const READ_DEBOUNCE_MS = 800;
+const MAX_SEND_ATTEMPTS = 5;
+const BACKOFF_BASE_MS = 1000;
+const BACKOFF_CAP_MS = 30000;
+
+interface QueuedSend {
+    content: string;
+    attempts: number;
+    inFlight: boolean;
+    timer: ReturnType<typeof setTimeout> | null;
+}
 
 const toAscending = (rows: Message[]): ThreadMessage[] =>
     [...rows].reverse().map((m) => ({ ...m, status: 'sent' as const }));
+
+const isOnline = () => typeof navigator === 'undefined' || navigator.onLine;
 
 export function useMessages(conversationId: string | null, currentUserId: string | null) {
     const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -35,13 +37,24 @@ export function useMessages(conversationId: string | null, currentUserId: string
     const [forbidden, setForbidden] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
     const [pollingActive, setPollingActive] = useState(false);
+    const [online, setOnline] = useState(isOnline);
 
     const messagesRef = useRef<ThreadMessage[]>([]);
     messagesRef.current = messages;
+    const conversationIdRef = useRef(conversationId);
+    conversationIdRef.current = conversationId;
+    const currentUserIdRef = useRef(currentUserId);
+    currentUserIdRef.current = currentUserId;
     const isLoadingOlderRef = useRef(false);
     const hasMoreRef = useRef(true);
     const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const prevConnectionStatusRef = useRef<ConnectionStatus>('connecting');
+
+    // In-memory send queue only -- never persisted, so a refresh drops
+    // unsent drafts rather than risking a stale replay across sessions.
+    const queueRef = useRef<Map<string, QueuedSend>>(new Map());
+    const attemptSendRef = useRef<(clientMsgId: string) => void>(() => {});
 
     const loadInitial = useCallback(() => {
         if (!conversationId) return;
@@ -65,9 +78,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
         loadInitial();
     }, [loadInitial]);
 
-    // Debounces PATCH /conversations/{id}/read so a burst of incoming
-    // messages collapses into one request. Skipped entirely while the tab
-    // is hidden -- we only mark messages read while the user can see them.
+    // Debounces PATCH /conversations/{id}/read so a burst of incoming messages collapses into one request.
     const scheduleMarkRead = useCallback(() => {
         if (!conversationId) return;
         if (document.visibilityState !== 'visible') return;
@@ -93,43 +104,30 @@ export function useMessages(conversationId: string | null, currentUserId: string
         };
     }, [conversationId]);
 
-    // Applies a single message delivered over the Realtime channel: skips it
-    // if we already have that server id (e.g. our own send() already
-    // resolved it), replaces a matching optimistic placeholder in place if
-    // one is pending, otherwise appends it.
+    // Applies a single message delivered over the Realtime channel.
     const applyIncomingMessage = useCallback((incoming: Message) => {
-        setMessages((prev) => {
-            if (prev.some((m) => m.id === incoming.id)) return prev;
-
-            const incomingTime = new Date(incoming.created_at).getTime();
-            const optimisticIdx = prev.findIndex(
-                (m) =>
-                    m.status !== 'sent' &&
-                    m.sender_id === incoming.sender_id &&
-                    m.content === incoming.content &&
-                    Math.abs(new Date(m.created_at).getTime() - incomingTime) < RECONCILE_WINDOW_MS
-            );
-
-            if (optimisticIdx !== -1) {
-                const next = [...prev];
-                next[optimisticIdx] = { ...incoming, status: 'sent', clientId: prev[optimisticIdx].clientId };
-                return next;
-            }
-
-            return [...prev, { ...incoming, status: 'sent' as const }].sort((a, b) =>
-                a.created_at.localeCompare(b.created_at)
-            );
-        });
+        setMessages((prev) => mergeMessages(prev, [{ ...incoming, status: 'sent' as const }]));
 
         if (incoming.sender_id !== currentUserId) {
             scheduleMarkRead();
         }
     }, [currentUserId, scheduleMarkRead]);
 
-    // Patches read_at in place when the Realtime channel delivers an UPDATE
-    // (e.g. the other participant's PATCH /read set read_at on our message).
+    // Patches read_at in place when the Realtime channel delivers an UPDATE.
     const applyMessageUpdate = useCallback((updated: Message) => {
         setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, read_at: updated.read_at } : m)));
+    }, []);
+
+    // Realtime does not replay events missed while disconnected.
+    const fillGap = useCallback(() => {
+        const convoId = conversationIdRef.current;
+        if (!convoId) return;
+        const newestSent = [...messagesRef.current].reverse().find((m) => m.status === 'sent');
+        getMessages(convoId, { limit: PAGE_SIZE, after: newestSent?.created_at })
+            .then((rows) => {
+                setMessages((prev) => mergeMessages(prev, toAscending(rows)));
+            })
+            .catch(() => {});
     }, []);
 
     // Realtime subscription, scoped to this conversation.
@@ -137,6 +135,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
         if (!conversationId || notFound || forbidden) return;
 
         setConnectionStatus('connecting');
+        prevConnectionStatusRef.current = 'connecting';
 
         const channel = supabase
             .channel(`messages:conversation:${conversationId}`)
@@ -172,9 +171,18 @@ export function useMessages(conversationId: string | null, currentUserId: string
         };
     }, [conversationId, notFound, forbidden, applyIncomingMessage, applyMessageUpdate]);
 
-    // Safety-net polling: only kicks in once the channel has been anything
-    // other than 'connected' for DISCONNECT_GRACE_MS, and turns off again as
-    // soon as it reconnects.
+    // Fires exactly on a disconnected
+    useEffect(() => {
+        const prev = prevConnectionStatusRef.current;
+        prevConnectionStatusRef.current = connectionStatus;
+
+        if (prev === 'disconnected' && connectionStatus === 'connected') {
+            fillGap();
+            flushQueueRef.current();
+        }
+    }, [connectionStatus, fillGap]);
+
+    // Safety-net polling.
     useEffect(() => {
         if (connectionStatus === 'connected') {
             if (disconnectTimerRef.current) {
@@ -202,26 +210,10 @@ export function useMessages(conversationId: string | null, currentUserId: string
     const mergeLatest = useCallback((rows: Message[]) => {
         const incoming = toAscending(rows);
         if (incoming.length === 0) return;
-        const incomingIds = new Set(incoming.map((m) => m.id));
-        const oldestIncomingCreatedAt = incoming[0].created_at;
-
-        setMessages((prev) => {
-            const kept = prev.filter((m) => {
-                if (m.status !== 'sent') {
-                    // Drop local optimistic/failed placeholders once the real message
-                    // shows up from the server (race between send() and a poll tick).
-                    const reconciled = incoming.some((i) => i.sender_id === m.sender_id && i.content === m.content);
-                    return !reconciled;
-                }
-                if (incomingIds.has(m.id)) return false;
-                return m.created_at < oldestIncomingCreatedAt;
-            });
-            return [...kept, ...incoming];
-        });
+        setMessages((prev) => mergeMessages(prev, incoming));
     }, []);
 
-    // Polling fallback, gated behind `pollingActive` so it's dormant while
-    // the Realtime channel is healthy.
+    // Polling fallback, gated behind `pollingActive` so it's dormant while the Realtime channel is healthy.
     useEffect(() => {
         if (!conversationId || notFound || forbidden || !pollingActive) return;
 
@@ -255,11 +247,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
         getMessages(conversationId, { limit: PAGE_SIZE, before: oldest.created_at })
             .then((rows) => {
                 const older = toAscending(rows);
-                setMessages((prev) => {
-                    const existingIds = new Set(prev.map((m) => m.id));
-                    const deduped = older.filter((m) => !existingIds.has(m.id));
-                    return [...deduped, ...prev];
-                });
+                setMessages((prev) => mergeMessages(older, prev));
                 hasMoreRef.current = rows.length === PAGE_SIZE;
                 setHasMore(rows.length === PAGE_SIZE);
             })
@@ -270,44 +258,109 @@ export function useMessages(conversationId: string | null, currentUserId: string
             });
     }, [conversationId]);
 
+    // Sends (or retries) a single queued message.
+    const attemptSend = useCallback((clientMsgId: string) => {
+        const convoId = conversationIdRef.current;
+        const item = queueRef.current.get(clientMsgId);
+        if (!item || !convoId || item.inFlight) return;
+        if (!isOnline()) return;
+
+        item.timer = null;
+        item.inFlight = true;
+        item.attempts += 1;
+        const attemptNumber = item.attempts;
+
+        sendMessageApi(convoId, item.content, clientMsgId)
+            .then((saved) => {
+                queueRef.current.delete(clientMsgId);
+                setMessages((prev) => mergeMessages(prev, [{ ...saved, status: 'sent' as const }]));
+            })
+            .catch(() => {
+                const current = queueRef.current.get(clientMsgId);
+                if (!current) return;
+                current.inFlight = false;
+                if (attemptNumber >= MAX_SEND_ATTEMPTS) {
+                    setMessages((prev) =>
+                        prev.map((m) => (m.client_msg_id === clientMsgId ? { ...m, status: 'failed' as const } : m))
+                    );
+                    return;
+                }
+                const delay = Math.min(BACKOFF_BASE_MS * 2 ** (attemptNumber - 1), BACKOFF_CAP_MS);
+                if (current.timer) clearTimeout(current.timer);
+                current.timer = setTimeout(() => attemptSendRef.current(clientMsgId), delay);
+            });
+    }, []);
+
+    useEffect(() => {
+        attemptSendRef.current = attemptSend;
+    }, [attemptSend]);
+
+    // Kicks every queued message that isn't already mid-attempt or exhausted.
+    const flushQueue = useCallback(() => {
+        for (const [clientMsgId, item] of queueRef.current) {
+            if (item.inFlight || item.attempts >= MAX_SEND_ATTEMPTS) continue;
+            if (item.timer) {
+                clearTimeout(item.timer);
+                item.timer = null;
+            }
+            attemptSendRef.current(clientMsgId);
+        }
+    }, []);
+    const flushQueueRef = useRef(flushQueue);
+    flushQueueRef.current = flushQueue;
+
+    useEffect(() => {
+        const handleOnline = () => {
+            setOnline(true);
+            flushQueueRef.current();
+        };
+        const handleOffline = () => setOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
     const send = useCallback((content: string) => {
-        if (!conversationId || !currentUserId) return Promise.resolve();
-        const clientId = `c${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const convoId = conversationIdRef.current;
+        const senderId = currentUserIdRef.current;
+        if (!convoId || !senderId) return;
+
+        const clientMsgId = crypto.randomUUID();
         const optimistic: ThreadMessage = {
-            id: `temp-${clientId}`,
-            clientId,
-            conversation_id: conversationId,
-            sender_id: currentUserId,
+            id: `temp-${clientMsgId}`,
+            client_msg_id: clientMsgId,
+            conversation_id: convoId,
+            sender_id: senderId,
             content,
             created_at: new Date().toISOString(),
             read_at: null,
             status: 'sending',
         };
-        setMessages((prev) => [...prev, optimistic]);
+        setMessages((prev) => mergeMessages(prev, [optimistic]));
 
-        return sendMessageApi(conversationId, content)
-            .then((saved) => {
-                setMessages((prev) => prev.map((m) => (m.clientId === clientId ? { ...saved, status: 'sent' as const, clientId } : m)));
-            })
-            .catch(() => {
-                setMessages((prev) => prev.map((m) => (m.clientId === clientId ? { ...m, status: 'failed' as const } : m)));
-            });
-    }, [conversationId, currentUserId]);
+        queueRef.current.set(clientMsgId, { content, attempts: 0, inFlight: false, timer: null });
+        attemptSendRef.current(clientMsgId);
+    }, []);
 
-    const retry = useCallback((clientId: string) => {
-        if (!conversationId) return;
-        const target = messagesRef.current.find((m) => m.clientId === clientId);
-        if (!target || target.status === 'sending') return;
+    const retry = useCallback((clientMsgId: string) => {
+        let item = queueRef.current.get(clientMsgId);
+        if (item) {
+            if (item.timer) clearTimeout(item.timer);
+            item.timer = null;
+            item.attempts = 0;
+        } else {
+            const target = messagesRef.current.find((m) => m.client_msg_id === clientMsgId);
+            if (!target) return;
+            item = { content: target.content, attempts: 0, inFlight: false, timer: null };
+            queueRef.current.set(clientMsgId, item);
+        }
 
-        setMessages((prev) => prev.map((m) => (m.clientId === clientId ? { ...m, status: 'sending' as const } : m)));
-        sendMessageApi(conversationId, target.content)
-            .then((saved) => {
-                setMessages((prev) => prev.map((m) => (m.clientId === clientId ? { ...saved, status: 'sent' as const, clientId } : m)));
-            })
-            .catch(() => {
-                setMessages((prev) => prev.map((m) => (m.clientId === clientId ? { ...m, status: 'failed' as const } : m)));
-            });
-    }, [conversationId]);
+        setMessages((prev) => prev.map((m) => (m.client_msg_id === clientMsgId ? { ...m, status: 'sending' as const } : m)));
+        attemptSendRef.current(clientMsgId);
+    }, []);
 
     return {
         messages,
@@ -317,6 +370,7 @@ export function useMessages(conversationId: string | null, currentUserId: string
         notFound,
         forbidden,
         connectionStatus,
+        isOffline: !online,
         loadOlder,
         send,
         retry,

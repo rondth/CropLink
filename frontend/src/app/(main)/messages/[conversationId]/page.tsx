@@ -86,7 +86,6 @@ export default function ConversationThreadPage() {
     const [convoForbidden, setConvoForbidden] = useState(false);
 
     const [draft, setDraft] = useState('');
-    const [isSending, setIsSending] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevScrollHeightRef = useRef<number | null>(null);
     const hasScrolledInitiallyRef = useRef(false);
@@ -100,6 +99,7 @@ export default function ConversationThreadPage() {
         notFound: messagesNotFound,
         forbidden: messagesForbidden,
         connectionStatus,
+        isOffline,
         loadOlder,
         send,
         retry,
@@ -194,16 +194,11 @@ export default function ConversationThreadPage() {
         setDraft(e.target.value.slice(0, MAX_LENGTH));
     };
 
-    const handleSend = async () => {
+    const handleSend = () => {
         const content = draft.trim();
-        if (!content || isSending) return;
-        setIsSending(true);
+        if (!content) return;
         setDraft('');
-        try {
-            await send(content);
-        } finally {
-            setIsSending(false);
-        }
+        send(content);
     };
 
     if (authLoading || convoLoading || (messagesLoading && !notFound && !forbidden)) {
@@ -285,7 +280,11 @@ export default function ConversationThreadPage() {
             </div>
 
             <div className="flex-1 px-4 py-3 flex flex-col gap-1">
-                {connectionStatus !== 'connected' && (
+                {isOffline ? (
+                    <div className="sticky top-0 z-10 flex justify-center py-1.5 mb-1 bg-gray-100 border border-gray-200 rounded-lg">
+                        <span className="text-[11px] font-bold text-gray-500">You&apos;re offline — messages will send once you&apos;re back online</span>
+                    </div>
+                ) : connectionStatus !== 'connected' && (
                     <div className="sticky top-0 z-10 flex justify-center py-1.5 mb-1 bg-amber-50 border border-amber-100 rounded-lg">
                         <span className="text-[11px] font-bold text-amber-600">Reconnecting…</span>
                     </div>
@@ -321,7 +320,7 @@ export default function ConversationThreadPage() {
                                 <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                     <div className="flex flex-col max-w-[75%]">
                                         <div
-                                            onClick={m.status === 'failed' ? () => retry(m.clientId!) : undefined}
+                                            onClick={m.status === 'failed' ? () => retry(m.client_msg_id!) : undefined}
                                             className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words transition-opacity
                                                 ${isOwn
                                                     ? m.status === 'failed'
@@ -380,7 +379,7 @@ export default function ConversationThreadPage() {
                     />
                     <button
                         onClick={handleSend}
-                        disabled={!draft.trim() || isSending}
+                        disabled={!draft.trim()}
                         className="shrink-0 w-10 h-10 rounded-full bg-CropLink-primary text-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all"
                     >
                         <SendIcon />
