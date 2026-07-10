@@ -1,6 +1,6 @@
 'use client';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getConversations, Conversation } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { timeAgo } from '@/lib/utils';
@@ -18,12 +18,27 @@ function ConversationSkeletonRow() {
     );
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { isAuthenticated, isLoading: authLoading } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [toast, setToast] = useState<string | null>(null);
+
+    useEffect(() => {
+        const toastMessage = searchParams.get('error');
+        if (!toastMessage) return;
+        setToast(toastMessage);
+        router.replace('/messages');
+    }, [searchParams, router]);
+
+    useEffect(() => {
+        if (!toast) return;
+        const t = setTimeout(() => setToast(null), 4000);
+        return () => clearTimeout(t);
+    }, [toast]);
 
     const fetchConversations = useCallback(() => {
         setIsLoading(true);
@@ -146,6 +161,22 @@ export default function MessagesPage() {
                     })}
                 </div>
             )}
+
+            {toast && (
+                <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 pointer-events-none">
+                    <div className="pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs font-bold text-white text-center max-w-xs bg-CropLink-accentRed">
+                        {toast}
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+export default function MessagesPage() {
+    return (
+        <Suspense fallback={null}>
+            <MessagesContent />
+        </Suspense>
     );
 }

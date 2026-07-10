@@ -18,6 +18,13 @@ CONVERSATION_SELECT = (
     "messages(content, created_at, sender_id, read_at)"
 )
 
+CONVERSATION_DETAIL_SELECT = (
+    "id, buyer_id, seller_id,"
+    "listing:crops_listings(id, crop_name, photo_url),"
+    "buyer:profiles!conversations_buyer_id_fkey(user_id, name, profile_picture_url),"
+    "seller:profiles!conversations_seller_id_fkey(user_id, name, profile_picture_url)"
+)
+
 PREVIEW_LENGTH = 80
 
 # SCHEMAS
@@ -133,6 +140,26 @@ def list_conversations(user_id: str) -> list[dict]:
     return result
 
 
+def get_conversation_detail(conversation_id: str, user_id: str) -> dict:
+    conversation = _get_conversation_or_404(conversation_id)
+    _ensure_participant(conversation, user_id)
+
+    response = (
+        supabase.table("conversations")
+        .select(CONVERSATION_DETAIL_SELECT)
+        .eq("id", conversation_id)
+        .execute()
+    )
+    convo = response.data[0]
+    other = convo["seller"] if convo["buyer_id"] == user_id else convo["buyer"]
+
+    return {
+        "id": convo["id"],
+        "listing": convo.get("listing"),
+        "other_participant": other,
+    }
+
+
 def get_conversation_messages(conversation_id: str, user_id: str, limit: int, before: Optional[str]) -> list[dict]:
     conversation = _get_conversation_or_404(conversation_id)
     _ensure_participant(conversation, user_id)
@@ -188,6 +215,12 @@ def create_conversation(
 @router.get("/")
 def get_conversations(user_id: str = Depends(get_current_user_id)):
     return list_conversations(user_id)
+
+
+# GET /conversations/{conversation_id}
+@router.get("/{conversation_id}")
+def get_conversation(conversation_id: str, user_id: str = Depends(get_current_user_id)):
+    return get_conversation_detail(conversation_id, user_id)
 
 
 # GET /conversations/{conversation_id}/messages

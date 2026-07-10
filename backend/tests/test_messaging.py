@@ -220,6 +220,71 @@ class TestListConversations:
         assert response.json() == []
 
 
+class TestGetConversation:
+    def test_requires_authentication(self, client):
+        response = client.get("/api/v1/conversations/convo-1")
+
+        assert response.status_code == 401
+
+    def test_404_when_conversation_missing(self, authed_client, supabase_mock):
+        _mock_conversation_lookup(supabase_mock, None)
+
+        response = authed_client.get("/api/v1/conversations/convo-1")
+
+        assert response.status_code == 404
+
+    def test_403_when_not_participant(self, authed_as, supabase_mock):
+        client = authed_as(user_id="stranger")
+        _mock_conversation_lookup(
+            supabase_mock, {"id": "convo-1", "buyer_id": "buyer-1", "seller_id": "seller-1"}
+        )
+
+        response = client.get("/api/v1/conversations/convo-1")
+
+        assert response.status_code == 403
+
+    def test_returns_conversation_detail_for_participant(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_conversation_lookup(
+            supabase_mock,
+            {
+                "id": "convo-1",
+                "buyer_id": "buyer-1",
+                "seller_id": "seller-1",
+                "listing": {"id": "listing-1", "crop_name": "Tomato", "photo_url": None},
+                "buyer": {"user_id": "buyer-1", "name": "Buyer One", "profile_picture_url": None},
+                "seller": {"user_id": "seller-1", "name": "Seller One", "profile_picture_url": None},
+            },
+        )
+
+        response = client.get("/api/v1/conversations/convo-1")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["id"] == "convo-1"
+        assert body["other_participant"]["user_id"] == "seller-1"
+        assert body["listing"]["crop_name"] == "Tomato"
+
+    def test_returns_buyer_as_other_participant_when_seller_views(self, authed_as, supabase_mock):
+        client = authed_as(user_id="seller-1")
+        _mock_conversation_lookup(
+            supabase_mock,
+            {
+                "id": "convo-1",
+                "buyer_id": "buyer-1",
+                "seller_id": "seller-1",
+                "listing": {"id": "listing-1", "crop_name": "Tomato", "photo_url": None},
+                "buyer": {"user_id": "buyer-1", "name": "Buyer One", "profile_picture_url": None},
+                "seller": {"user_id": "seller-1", "name": "Seller One", "profile_picture_url": None},
+            },
+        )
+
+        response = client.get("/api/v1/conversations/convo-1")
+
+        assert response.status_code == 200
+        assert response.json()["other_participant"]["user_id"] == "buyer-1"
+
+
 class TestGetMessages:
     def test_requires_authentication(self, client):
         response = client.get("/api/v1/conversations/convo-1/messages")

@@ -49,6 +49,23 @@ export function timeAgo(dateString: string): string {
     return `${Math.floor(diffDays / 365)}y`;
 }
 
+export function isSameCalendarDay(a: string, b: string): boolean {
+    const da = new Date(a);
+    const db = new Date(b);
+    return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
+export function formatDayDivider(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
 export function formatAmount(n: number): { display: string; suffix: string } {
     if (Math.abs(n) >= 1e9) return { display: (n / 1e9).toFixed(1).replace(/\.0$/, ''), suffix: 'B' };
     if (Math.abs(n) >= 1e6) return { display: (n / 1e6).toFixed(1).replace(/\.0$/, ''), suffix: 'M' };

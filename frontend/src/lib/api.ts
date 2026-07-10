@@ -148,6 +148,21 @@ export interface ConversationRecord {
     last_message_at: string | null;
 }
 
+export interface ConversationDetail {
+    id: string;
+    listing: ConversationListing | null;
+    other_participant: ConversationParticipant | null;
+}
+
+export interface Message {
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    content: string;
+    created_at: string;
+    read_at: string | null;
+}
+
 export const getConversations = async (): Promise<Conversation[]> => {
     const response = await api.get<Conversation[]>('/conversations');
     return response.data;
@@ -155,5 +170,25 @@ export const getConversations = async (): Promise<Conversation[]> => {
 
 export const createConversation = async (listing_id: string): Promise<ConversationRecord> => {
     const response = await api.post<ConversationRecord>('/conversations', { listing_id });
+    return response.data;
+}
+
+export const getConversation = async (conversationId: string): Promise<ConversationDetail> => {
+    const response = await api.get<ConversationDetail>(`/conversations/${conversationId}`);
+    return response.data;
+}
+
+export const getMessages = async (
+    conversationId: string,
+    params: { limit?: number; before?: string } = {}
+): Promise<Message[]> => {
+    const response = await api.get<Message[]>(`/conversations/${conversationId}/messages`, {
+        params: { limit: params.limit ?? 50, before: params.before },
+    });
+    return response.data;
+}
+
+export const sendMessage = async (conversationId: string, content: string): Promise<Message> => {
+    const response = await api.post<Message>(`/conversations/${conversationId}/messages`, { content });
     return response.data;
 }
