@@ -140,9 +140,30 @@ def list_conversations(user_id: str) -> list[dict]:
             "other_participant": other,
             "last_message": last_message,
             "unread_count": unread_count,
+            "last_message_at": convo.get("last_message_at"),
         })
 
     return result
+
+
+MAX_NOTIFICATIONS = 10
+
+
+def get_unread_conversations(user_id: str, limit: int = MAX_NOTIFICATIONS) -> list[dict]:
+    """Thin projection over list_conversations for the notification bell --
+    same query, same blocked-user exclusion, filtered to unread and capped.
+    Conversations are already ordered by last_message_at desc from the query."""
+    unread = [c for c in list_conversations(user_id) if c["unread_count"] > 0]
+    return [
+        {
+            "conversation_id": c["id"],
+            "other_participant": c["other_participant"],
+            "preview": c["last_message"]["content"],
+            "unread_count": c["unread_count"],
+            "last_message_at": c["last_message_at"],
+        }
+        for c in unread[:limit]
+    ]
 
 
 def get_conversation_detail(conversation_id: str, user_id: str) -> dict:

@@ -205,3 +205,18 @@ export const markConversationRead = async (conversationId: string): Promise<{ ma
     const response = await api.patch<{ marked_count: number }>(`/conversations/${conversationId}/read`);
     return response.data;
 }
+
+// ====== Notifications API ======
+
+export interface MessageNotification {
+    conversation_id: string;
+    other_participant: ConversationParticipant | null;
+    preview: string;
+    unread_count: number;
+    last_message_at: string | null;
+}
+
+export const getMessageNotifications = async (): Promise<MessageNotification[]> => {
+    const response = await api.get<MessageNotification[]>('/notifications/messages');
+    return response.data;
+}
