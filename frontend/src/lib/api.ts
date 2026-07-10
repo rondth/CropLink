@@ -206,6 +206,11 @@ export const markConversationRead = async (conversationId: string): Promise<{ ma
     return response.data;
 }
 
+export const getUnreadMessageCount = async (): Promise<number> => {
+    const response = await api.get<{ total: number }>('/conversations/unread-count');
+    return response.data.total;
+}
+
 // ====== Notifications API ======
 
 export interface MessageNotification {

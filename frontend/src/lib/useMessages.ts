@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessages, markConversationRead, sendMessage as sendMessageApi, Message } from './api';
 import { mergeMessages, ThreadMessage } from './mergeMessages';
 import { supabase } from './supabase';
+import { useUnreadMessageCount } from './UnreadMessageCountContext';
 
 export type { ThreadMessage };
 
@@ -38,6 +39,8 @@ export function useMessages(conversationId: string | null, currentUserId: string
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
     const [pollingActive, setPollingActive] = useState(false);
     const [online, setOnline] = useState(isOnline);
+
+    const { markConversationMessagesRead } = useUnreadMessageCount();
 
     const messagesRef = useRef<ThreadMessage[]>([]);
     messagesRef.current = messages;
@@ -85,15 +88,19 @@ export function useMessages(conversationId: string | null, currentUserId: string
         if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
         markReadTimerRef.current = setTimeout(() => {
             markReadTimerRef.current = null;
-            markConversationRead(conversationId).catch(() => {});
+            markConversationRead(conversationId)
+                .then((res) => markConversationMessagesRead(res.marked_count))
+                .catch(() => {});
         }, READ_DEBOUNCE_MS);
-    }, [conversationId]);
+    }, [conversationId, markConversationMessagesRead]);
 
     // Mark read once when the thread mounts (or the conversation changes).
     useEffect(() => {
         if (!conversationId || notFound || forbidden) return;
-        markConversationRead(conversationId).catch(() => {});
-    }, [conversationId, notFound, forbidden]);
+        markConversationRead(conversationId)
+            .then((res) => markConversationMessagesRead(res.marked_count))
+            .catch(() => {});
+    }, [conversationId, notFound, forbidden, markConversationMessagesRead]);
 
     useEffect(() => {
         return () => {

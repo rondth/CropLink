@@ -5,14 +5,14 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { useMessageNotifications } from '@/lib/useMessageNotifications';
+import { useUnreadMessageCount } from '@/lib/UnreadMessageCountContext';
 
 export default function Header() {
     const router = useRouter();
     const { user } = useAuth();
     const { notifications, removeConversation } = useMessageNotifications(user?.user_id ?? null);
+    const { unreadCount } = useUnreadMessageCount();
     const [isBellOpen, setIsBellOpen] = useState(false);
-
-    const unreadCount = notifications.length;
 
     const openConversation = (conversationId: string) => {
         removeConversation(conversationId);
