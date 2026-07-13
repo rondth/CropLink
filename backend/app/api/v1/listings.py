@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from datetime import date, datetime, timezone
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
+from ml.seasonal import make_recommendation
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -378,6 +379,29 @@ def get_product_price_data(produce_id: str, currency:str = "USD"):
     data["currency"] = target_currency 
 
     return data
+
+# GET /listings/{id}/recommendation
+@router.get("/{listing_id}/recommendation")
+def get_listing_recommendation(listing_id: str):
+    response = supabase.table("crops_listings").select("crop_name, category, currency, harvested_at").eq("id", listing_id).limit(1).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    listing = response.data[0]
+    harvest_date: date | None = None
+    if listing.get("harvested_at"):
+        try:
+            harvest_date = datetime.fromisoformat(listing["harvested_at"]).date()
+        except ValueError:
+            harvest_date = None
+
+    return make_recommendation(
+        crop_name=listing["crop_name"],
+        category=listing.get("category", ""),
+        harvest_date=harvest_date,
+        currency=listing.get("currency", "USD"),
+    )
+
 
 # GET /listings/{id}
 # get single listing

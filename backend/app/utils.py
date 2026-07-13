@@ -42,6 +42,14 @@ def get_rate_to_usd(supabase, currency: str) -> float | None:
         return float(result.data[0]["rate_to_usd"])
     return None
 
+def score_buyer(review_score: float | None, category_match_count: int) -> tuple[float, str]:
+    if category_match_count > 0:
+        base = review_score if review_score is not None else 2.5
+        score = 0.6 * base + 0.4 * min(category_match_count, 5)
+        return score, "review_score_and_history"
+    return (review_score if review_score is not None else 0.0), "review_score_only"
+
+
 async def get_subtotal_in_usd(transaction, db) -> float | None:
     currency = transaction.currency or "USD"
     if currency == "USD":
