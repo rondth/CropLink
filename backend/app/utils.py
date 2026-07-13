@@ -133,6 +133,7 @@ def apply_converted_prices(supabase, listings: list[dict], target_currency: str)
         listing["converted_price"] = round(converted) if target_currency in ZERO_DECIMAL_CURRENCIES else round(converted, 2)
         listing["converted_currency"] = target_currency
 
+
 def score_buyer(review_score: float | None, category_match_count: int) -> tuple[float, str]:
     if category_match_count > 0:
         base = review_score if review_score is not None else 2.5
