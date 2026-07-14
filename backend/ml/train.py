@@ -1,18 +1,22 @@
+import json
 from pathlib import Path
-import joblib
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from xgboost import XGBRegressor
+
 DATASET_DIR = Path(__file__).resolve().parents[2] / "backup" / "dataset"
 CSV_PATHS = [
     DATASET_DIR / "wfp_food_prices_global_2024.csv",
     DATASET_DIR / "wfp_food_prices_global_2025.csv",
     DATASET_DIR / "wfp_food_prices_global_2026 (1).csv",
 ]
-MODEL_PATH = Path(__file__).resolve().parent / "model.pkl"
+MODEL_PATH = Path(__file__).resolve().parent / "model.json"
+ENCODERS_PATH = Path(__file__).resolve().parent / "encoders.json"
+REF_DATA_PATH = Path(__file__).resolve().parent / "ref_data.json"
 
 CATEGORICAL_COLS = ["commodity", "category", "countryiso3", "currency"]
 def load_and_filter() -> pd.DataFrame:
@@ -44,8 +48,35 @@ def build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, LabelEncod
 FEATURE_COLS = ["month", "year", "latitude", "longitude", *CATEGORICAL_COLS]
 TARGET_COL = 'usdprice'
 
+
+def build_ref_data(raw_df: pd.DataFrame) -> dict:
+    df = raw_df[raw_df["unit"] == "KG"]
+    df = df[df["pricetype"] == "Retail"]
+    df = df[df["priceflag"] == "actual"]
+    df = df.dropna(subset=["usdprice", "commodity", "countryiso3", "latitude", "longitude"])
+
+    hist_avg = df.groupby("commodity")["usdprice"].mean().to_dict()
+    commodity_meta = (
+        df.groupby("commodity")
+        .agg(
+            latitude=("latitude", "mean"),
+            longitude=("longitude", "mean"),
+            countryiso3=("countryiso3", lambda x: x.mode().iloc[0]),
+            currency=("currency", lambda x: x.mode().iloc[0]),
+        )
+        .to_dict("index")
+    )
+
+    return {
+        "hist_avg": hist_avg,
+        "commodity_meta": commodity_meta,
+        "known_commodities": list(hist_avg.keys()),
+    }
+
+
 def train() -> None:
     print("Loading...")
+    raw_df = pd.concat([pd.read_csv(p) for p in CSV_PATHS], ignore_index=True)
     df = load_and_filter()
     print(f" {len(df):,} rows after filtering")
 
@@ -77,7 +108,7 @@ def train() -> None:
     commodity_avg = train_avg.groupby(encoders["commodity"].inverse_transform(X_train["commodity"])).mean()
     comparison["historical_avg"] = comparison["commodity"].map(commodity_avg)
     comparison["error"] = comparison["actual_price"] - comparison["predicted_price"]
-    
+
     summary = comparison.groupby("commodity")[["actual_price", "predicted_price", "error", "historical_avg"]].mean()
     print("\nAverage per commodity (actual vs predicted vs historical avg):")
     print(summary.to_string())
@@ -88,8 +119,19 @@ def train() -> None:
     plt.tight_layout()
     plt.show()
 
-    joblib.dump({"model": model, "encoders": encoders}, MODEL_PATH)
-    print(f"Saved = {MODEL_PATH}")
+    
+    model.get_booster().save_model(str(MODEL_PATH))
+    encoders_export = {
+        col: {str(cls): idx for idx, cls in enumerate(le.classes_)}
+        for col, le in encoders.items()
+    }
+    ENCODERS_PATH.write_text(json.dumps(encoders_export))
+    print(f"Saved model = {MODEL_PATH}")
+    print(f"Saved encoders = {ENCODERS_PATH}")
+
+    ref_data = build_ref_data(raw_df)
+    REF_DATA_PATH.write_text(json.dumps(ref_data))
+    print(f"Saved ref data = {REF_DATA_PATH}")
 
 if __name__ == "__main__":
     train()

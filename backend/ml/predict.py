@@ -1,15 +1,13 @@
+import json
 from datetime import date, timedelta
 from pathlib import Path
 
-import joblib
-import pandas as pd
+import numpy as np
+import xgboost as xgb
 
-MODEL_PATH = Path(__file__).resolve().parent / "model.pkl"
-CSV_PATHS = [
-    Path(__file__).resolve().parents[2] / "backup" / "dataset" / "wfp_food_prices_global_2024.csv",
-    Path(__file__).resolve().parents[2] / "backup" / "dataset" / "wfp_food_prices_global_2025.csv",
-    Path(__file__).resolve().parents[2] / "backup" / "dataset" / "wfp_food_prices_global_2026 (1).csv",
-]
+MODEL_PATH = Path(__file__).resolve().parent / "model.json"
+ENCODERS_PATH = Path(__file__).resolve().parent / "encoders.json"
+REF_DATA_PATH = Path(__file__).resolve().parent / "ref_data.json"
 
 CATEGORY_MAP = {
     "cereals & tubers": "cereals and tubers",
@@ -26,38 +24,17 @@ _ref_data = None
 def _load():
     global _artifact
     if _artifact is None:
-        _artifact = joblib.load(MODEL_PATH)
+        booster = xgb.Booster()
+        booster.load_model(str(MODEL_PATH))
+        encoders = json.loads(ENCODERS_PATH.read_text())
+        _artifact = {"model": booster, "encoders": encoders}
     return _artifact
 
 
 def _load_ref_data():
     global _ref_data
-    if _ref_data is not None:
-        return _ref_data
-
-    df = pd.concat([pd.read_csv(p) for p in CSV_PATHS], ignore_index=True)
-    df = df[df["unit"] == "KG"]
-    df = df[df["pricetype"] == "Retail"]
-    df = df[df["priceflag"] == "actual"]
-    df = df.dropna(subset=["usdprice", "commodity", "countryiso3", "latitude", "longitude"])
-
-    hist_avg = df.groupby("commodity")["usdprice"].mean().to_dict()
-    commodity_meta = (
-        df.groupby("commodity")
-        .agg(
-            latitude=("latitude", "mean"),
-            longitude=("longitude", "mean"),
-            countryiso3=("countryiso3", lambda x: x.mode().iloc[0]),
-            currency=("currency", lambda x: x.mode().iloc[0]),
-        )
-        .to_dict("index")
-    )
-
-    _ref_data = {
-        "hist_avg": hist_avg,
-        "commodity_meta": commodity_meta,
-        "known_commodities": list(hist_avg.keys()),
-    }
+    if _ref_data is None:
+        _ref_data = json.loads(REF_DATA_PATH.read_text())
     return _ref_data
 
 
@@ -70,15 +47,18 @@ def _match_commodity(crop_name: str, known_commodities: list) -> str | None:
 
 
 FEATURE_COLS = ["month", "year", "latitude", "longitude", "commodity", "category", "countryiso3", "currency"]
+_CATEGORICAL_COLS = {"commodity", "category", "countryiso3", "currency"}
+
 
 def _predict_price(model, encoders, row: dict) -> float:
-    df = pd.DataFrame([row])
-    for col, le in encoders.items():
-        try:
-            df[col] = le.transform(df[col].astype(str))
-        except ValueError:
-            df[col] = 0
-    return float(model.predict(df[FEATURE_COLS])[0])
+    features = []
+    for col in FEATURE_COLS:
+        value = row[col]
+        if col in _CATEGORICAL_COLS:
+            value = encoders[col].get(str(value), 0)
+        features.append(value)
+    dmatrix = xgb.DMatrix(np.array([features], dtype=np.float32), feature_names=FEATURE_COLS)
+    return float(model.predict(dmatrix)[0])
 
 
 def predict_next_day(commodity, category, countryiso3, currency, latitude, longitude):
@@ -97,15 +77,12 @@ def predict_next_day(commodity, category, countryiso3, currency, latitude, longi
         "countryiso3": countryiso3,
         "currency": currency,
     }
-    df = pd.DataFrame([row])
-    for col, le in encoders.items():
-        df[col] = le.transform(df[col].astype(str))
-    predicted_price = model.predict(df)[0]
+    predicted_price = _predict_price(model, encoders, row)
 
     return {
         "date": tomorrow.isoformat(),
         "commodity": commodity,
-        "predicted_price": round(float(predicted_price), 4),
+        "predicted_price": round(predicted_price, 4),
     }
 
 
@@ -128,7 +105,7 @@ def get_recommendation(crop_name: str, category: str, currency: str) -> dict:
     meta = ref["commodity_meta"][matched]
     hist_avg = ref["hist_avg"][matched]
     category_mapped = CATEGORY_MAP.get(category.lower(), category.lower())
-    currency_to_use = currency if currency in encoders["currency"].classes_ else meta["currency"]
+    currency_to_use = currency if currency in encoders["currency"] else meta["currency"]
 
     base_row = {
         "latitude": meta["latitude"],
