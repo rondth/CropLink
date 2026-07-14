@@ -58,7 +58,7 @@ class TestLogin:
             session=SimpleNamespace(access_token="access-token", refresh_token="refresh-token"),
         )
         supabase_mock.table("profiles").select.return_value.eq.return_value.single.return_value.execute.return_value = (
-            SimpleNamespace(data={"role": "seller", "name": "Farmer Joe", "preffered_currency": "USD"})
+            SimpleNamespace(data={"role": "seller", "name": "Farmer Joe", "preferred_currency": "USD"})
         )
 
         response = client.post("/api/v1/auth/login", json={"email": "farmer@example.com", "password": "supersecret"})
@@ -96,7 +96,7 @@ class TestRefresh:
             session=SimpleNamespace(access_token="new-access", refresh_token="new-refresh"),
         )
         supabase_mock.table("profiles").select.return_value.eq.return_value.single.return_value.execute.return_value = (
-            SimpleNamespace(data={"role": "seller", "name": "Farmer Joe", "preffered_currency": "USD"})
+            SimpleNamespace(data={"role": "seller", "name": "Farmer Joe", "preferred_currency": "USD"})
         )
 
         response = client.post("/api/v1/auth/refresh", json={"refresh_token": "old-refresh"})
