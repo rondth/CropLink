@@ -92,7 +92,7 @@ function MessagesContent() {
                 </div>
             ) : conversations.length === 0 ? (
                 <div className="mx-6 mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center gap-3 text-center">
-                    <div className="text-4xl">💬</div>
+                    {/* <div className="text-4xl"> Logo Placeholder </div> */} 
                     <p className="text-sm text-gray-500">
                         No conversations yet.
                         <br />

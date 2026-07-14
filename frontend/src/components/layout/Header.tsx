@@ -88,9 +88,6 @@ return (
 
                 <Link href="/orders" key="orders" className="bg-white/15 border-none rounded-lg w-8 h-8 flex items-center justify-center relative text-white">
                     <Image src="/shopping-cart.png" alt="Cart Icon" width={18} height={18} />
-                    <div className="absolute -top-0.5 -right-0.5 bg-CropLink-accentRed text-white rounded-full w-3.5 h-3.5 text-[9px] font-extrabold flex items-center justify-center">
-                        2
-                    </div>
                 </Link>
             </div>
         </div>
