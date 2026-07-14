@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getConversations, Conversation } from './api';
 import { subscribeToInbox } from './inboxRealtime';
+import { truncatePreview } from './utils';
 
 export function useConversations(currentUserId: string | null) {
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -31,7 +32,7 @@ export function useConversations(currentUserId: string | null) {
                 const next = [...prev];
                 next[idx] = {
                     ...target,
-                    last_message: { content: message.content, created_at: message.created_at },
+                    last_message: { content: truncatePreview(message.content), created_at: message.created_at },
                     unread_count: message.sender_id === currentUserId ? target.unread_count : target.unread_count + 1,
                 };
                 return next;

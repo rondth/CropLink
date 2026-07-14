@@ -197,6 +197,39 @@ class TestListConversations:
         assert response.status_code == 200
         assert response.json() == []
 
+    def test_returns_empty_list_when_no_conversations(self, authed_client, supabase_mock):
+        supabase_mock.table(
+            "conversations"
+        ).select.return_value.or_.return_value.order.return_value.execute.return_value = SimpleNamespace(data=[])
+
+        response = authed_client.get("/api/v1/conversations/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_scopes_query_to_the_caller(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        supabase_mock.table(
+            "conversations"
+        ).select.return_value.or_.return_value.order.return_value.execute.return_value = SimpleNamespace(data=[])
+
+        client.get("/api/v1/conversations/")
+
+        supabase_mock.table("conversations").select.return_value.or_.assert_called_once_with(
+            "buyer_id.eq.buyer-1,seller_id.eq.buyer-1"
+        )
+
+    def test_orders_by_last_message_at_desc_with_nulls_last(self, authed_client, supabase_mock):
+        supabase_mock.table(
+            "conversations"
+        ).select.return_value.or_.return_value.order.return_value.execute.return_value = SimpleNamespace(data=[])
+
+        authed_client.get("/api/v1/conversations/")
+
+        supabase_mock.table("conversations").select.return_value.or_.return_value.order.assert_called_once_with(
+            "last_message_at", desc=True, nullsfirst=False
+        )
+
     def test_excludes_conversations_with_no_messages_yet(self, authed_as, supabase_mock):
         client = authed_as(user_id="buyer-1")
         supabase_mock.table(
@@ -635,13 +668,19 @@ class TestUnreadCount:
         supabase_mock.table(
             "messages"
         ).select.return_value.neq.return_value.is_.return_value.or_.return_value.execute.return_value = (
-            SimpleNamespace(data=[{"id": "msg-1"}, {"id": "msg-2"}], count=7)
+            SimpleNamespace(
+                data=[
+                    {"id": "msg-1", "conversations": {"buyer_id": "buyer-1", "seller_id": "seller-1"}},
+                    {"id": "msg-2", "conversations": {"buyer_id": "buyer-1", "seller_id": "seller-2"}},
+                ]
+            )
         )
+        _mock_blocks_table(supabase_mock)
 
         response = client.get("/api/v1/conversations/unread-count")
 
         assert response.status_code == 200
-        assert response.json() == {"total": 7}
+        assert response.json() == {"total": 2}
 
         select_call = supabase_mock.table("messages").select
         select_call.return_value.neq.assert_called_once_with("sender_id", "buyer-1")
@@ -650,14 +689,33 @@ class TestUnreadCount:
             "buyer_id.eq.buyer-1,seller_id.eq.buyer-1", reference_table="conversations"
         )
 
-    def test_returns_zero_when_count_is_none(self, authed_client, supabase_mock):
+    def test_returns_zero_when_no_unread_messages(self, authed_client, supabase_mock):
         supabase_mock.table(
             "messages"
         ).select.return_value.neq.return_value.is_.return_value.or_.return_value.execute.return_value = (
-            SimpleNamespace(data=[], count=None)
+            SimpleNamespace(data=[])
         )
 
         response = authed_client.get("/api/v1/conversations/unread-count")
 
         assert response.status_code == 200
         assert response.json() == {"total": 0}
+
+    def test_excludes_unread_messages_from_blocked_conversations(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        supabase_mock.table(
+            "messages"
+        ).select.return_value.neq.return_value.is_.return_value.or_.return_value.execute.return_value = (
+            SimpleNamespace(
+                data=[
+                    {"id": "msg-1", "conversations": {"buyer_id": "buyer-1", "seller_id": "seller-1"}},
+                    {"id": "msg-2", "conversations": {"buyer_id": "buyer-1", "seller_id": "blocked-seller"}},
+                ]
+            )
+        )
+        _mock_blocks_table(supabase_mock, blocked_by_a=[{"blocked_id": "blocked-seller"}])
+
+        response = client.get("/api/v1/conversations/unread-count")
+
+        assert response.status_code == 200
+        assert response.json() == {"total": 1}

@@ -36,5 +36,13 @@ export default defineConfig({
                 storageState: 'e2e/.auth/seller.json',
             },
         },
+        {
+            name: 'messaging',
+            testMatch: '**/messaging.spec.ts',
+            dependencies: ['buyer-setup', 'seller-setup'],
+            use: {
+                ...devices['Desktop Chrome'],
+            },
+        },
     ],
 });

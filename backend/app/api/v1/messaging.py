@@ -226,13 +226,25 @@ def mark_conversation_read(conversation_id: str, user_id: str) -> int:
 def get_unread_total(user_id: str) -> int:
     response = (
         supabase.table("messages")
-        .select("id, conversations!inner(buyer_id, seller_id)", count="exact")
+        .select("id, conversations!inner(buyer_id, seller_id)")
         .neq("sender_id", user_id)
         .is_("read_at", None)
         .or_(f"buyer_id.eq.{user_id},seller_id.eq.{user_id}", reference_table="conversations")
         .execute()
     )
-    return response.count or 0
+    rows = response.data or []
+    if not rows:
+        return 0
+
+    blocked_ids = get_blocked_user_ids(supabase, user_id)
+    if not blocked_ids:
+        return len(rows)
+
+    def other_participant(row: dict) -> str:
+        convo = row["conversations"]
+        return convo["seller_id"] if convo["buyer_id"] == user_id else convo["buyer_id"]
+
+    return sum(1 for row in rows if other_participant(row) not in blocked_ids)
 
 
 def _find_message_by_client_id(conversation_id: str, client_msg_id: str) -> Optional[dict]:

@@ -41,12 +41,19 @@ export function timeAgo(dateString: string): string {
     const diffHours = Math.floor(diffMinutes / 60);
     if (diffHours < 24) return `${diffHours}h`;
     const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays}d`;
     const diffWeeks = Math.floor(diffDays / 7);
     if (diffWeeks < 5) return `${diffWeeks}w`;
     const diffMonths = Math.floor(diffDays / 30);
     if (diffMonths < 12) return `${diffMonths}mo`;
     return `${Math.floor(diffDays / 365)}y`;
+}
+
+export const MESSAGE_PREVIEW_LENGTH = 80;
+
+export function truncatePreview(content: string, maxLength: number = MESSAGE_PREVIEW_LENGTH): string {
+    return content.slice(0, maxLength);
 }
 
 export function isSameCalendarDay(a: string, b: string): boolean {
