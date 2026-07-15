@@ -223,6 +223,8 @@ export interface MessageNotification {
 
 export const getMessageNotifications = async (): Promise<MessageNotification[]> => {
     const response = await api.get<MessageNotification[]>('/notifications/messages');
+    return response.data;
+}
 // Distributor Recommendations API 
 
 export interface RecommendedDistributor {
