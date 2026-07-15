@@ -57,7 +57,7 @@ api.interceptors.response.use(
     }
 );
 
-// ====== Payment API ======
+// Payment API 
 
 export interface CreateTransactionRequest {
     listing_id: string;
@@ -223,5 +223,22 @@ export interface MessageNotification {
 
 export const getMessageNotifications = async (): Promise<MessageNotification[]> => {
     const response = await api.get<MessageNotification[]>('/notifications/messages');
+// Distributor Recommendations API 
+
+export interface RecommendedDistributor {
+    buyer_id: string;
+    name: string | null;
+    profile_picture_url: string | null;
+    review_score: number | null;
+    review_count: number;
+    category_match_count: number;
+    score: number;
+    basis: 'review_score_and_history' | 'review_score_only';
+}
+
+export const getRecommendedDistributors = async (
+    limit: number = 5
+): Promise<RecommendedDistributor[]> => {
+    const response = await api.get<RecommendedDistributor[]>('/distributors/recommended', { params: { limit } });
     return response.data;
 }
