@@ -9,7 +9,7 @@ export interface User {
   email: string;
   role: 'farmer' | 'buyer' | 'seller' | string; 
   name: string;
-  preffered_currency?: string;
+  preferred_currency?: string;
 }
 
 interface AuthContextType {

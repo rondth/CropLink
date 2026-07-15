@@ -38,13 +38,13 @@ export default function Profile() {
             api.get('/auth/me').then(res => {
                 setName(res.data.name || '');
                 setAvatarUrl(res.data.profile_picture_url || null);
-                setprefferedCurrency(res.data.preffered_currency || 'USD');
+                setprefferedCurrency(res.data.preferred_currency || 'USD');
                 setBio(res.data.bio || '');
                 setNumListings(res.data.num_listings || 0);
                 setProfileLoading(false);
             }).catch(() => {
                 setName(user.name || '');
-                setprefferedCurrency(user.preffered_currency || 'USD');
+                setprefferedCurrency(user.preferred_currency || 'USD');
                 setProfileLoading(false);
             });
         }
@@ -176,7 +176,7 @@ export default function Profile() {
                 }
             }
 
-            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preffered_currency: prefferedCurrency, bio });
+            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preferred_currency: prefferedCurrency, bio });
 
             setAvatarUrl(finalAvatarUrl);
             setIsEditing(false);
@@ -198,7 +198,7 @@ export default function Profile() {
         api.get('/auth/me').then(res => {
             setName(res.data.name || '');
             setAvatarUrl(res.data.profile_picture_url || null);
-            setprefferedCurrency(res.data.preffered_currency || 'USD');
+            setprefferedCurrency(res.data.preferred_currency || 'USD');
             setBio(res.data.bio || '');
         });
     };
