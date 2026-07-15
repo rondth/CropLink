@@ -40,7 +40,7 @@ return (
             <span className="text-xl relative inline-flex">
                 {tab.iconName === 'messages' ? (
                     <>
-                        <MessageCircle className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+                        <MessageCircle className={`w-6 h-6 ${isActive ? '' : 'text-black'}`} strokeWidth={isActive ? 1.5 : 1.5} />
                         {unreadCount > 0 && (
                             <span
                                 role="status"

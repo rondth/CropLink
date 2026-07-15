@@ -212,7 +212,6 @@ export default function ConversationThreadPage() {
     if (notFound) {
         return (
             <div className="p-6 flex flex-col items-center justify-center min-h-[70vh] gap-3 text-center">
-                <div className="text-5xl">🔍</div>
                 <h2 className="text-lg font-black text-gray-800">Conversation not found</h2>
                 <p className="text-sm text-gray-500 max-w-xs">
                     This conversation may have been removed, or the link is incorrect.
@@ -298,7 +297,7 @@ export default function ConversationThreadPage() {
 
                 {messages.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center py-10">
-                        <p className="text-xs text-gray-400 text-center">No messages yet. Say hello 👋</p>
+                        <p className="text-xs text-gray-400 text-center">No messages yet. Say hello!</p>
                     </div>
                 ) : (
                     messages.map((m, i) => {
