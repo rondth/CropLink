@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator, Field
 from typing import Optional, Literal
 from datetime import date, datetime, timezone
-from app.core.dependencies import get_current_user, get_current_user_id
+from app.core.dependencies import get_current_user, get_current_user_id, get_optional_user_id
 from app.core.supabase import supabase
+from app.utils import get_blocked_user_ids
 from ml.seasonal import make_recommendation
 
 router = APIRouter(prefix="/listings", tags=["listings"])
@@ -118,9 +119,14 @@ def create_listing(
 
 # GET /listings
 @router.get("/")
-def get_listings():
+def get_listings(user_id: Optional[str] = Depends(get_optional_user_id)):
     response = supabase.table("crops_listings").select("*").eq("status", "active").gt("quantity", 0).execute()
     listings = response.data
+
+    if user_id:
+        blocked_ids = get_blocked_user_ids(supabase, user_id)
+        if blocked_ids:
+            listings = [listing for listing in listings if listing.get("seller_id") not in blocked_ids]
 
     seller_ids = list({listing["seller_id"] for listing in listings if listing.get("seller_id")})
     if seller_ids:

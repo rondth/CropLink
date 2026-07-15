@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 
 def valid_listing_payload(**overrides):
@@ -73,6 +74,103 @@ class TestGetListings:
 
         assert response.status_code == 200
         assert response.json() == []
+
+    def test_anonymous_visitor_sees_all_listings_unfiltered(self, client, supabase_mock, monkeypatch):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "1", "seller_id": "user-1", "crop_name": "Tomato"}])
+        )
+        supabase_mock.table("profiles").select.return_value.in_.return_value.execute.return_value = SimpleNamespace(
+            data=[{"user_id": "user-1", "name": "Farmer Joe"}]
+        )
+        monkeypatch.setattr(
+            "app.api.v1.listings.get_blocked_user_ids",
+            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not be called for anonymous users")),
+        )
+
+        response = client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+
+    def test_excludes_listings_from_blocked_sellers(self, authed_client, supabase_mock, monkeypatch):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(
+                data=[
+                    {"id": "1", "seller_id": "user-1", "crop_name": "Tomato"},
+                    {"id": "2", "seller_id": "blocked-seller", "crop_name": "Corn"},
+                ]
+            )
+        )
+        supabase_mock.table("profiles").select.return_value.in_.return_value.execute.return_value = SimpleNamespace(
+            data=[{"user_id": "user-1", "name": "Farmer Joe"}]
+        )
+        monkeypatch.setattr(
+            "app.api.v1.listings.get_blocked_user_ids", lambda supabase, user_id: {"blocked-seller"}
+        )
+
+        response = authed_client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        ids = [listing["id"] for listing in response.json()]
+        assert ids == ["1"]
+
+
+class TestListingsExclusion:
+    """Exercises the real get_blocked_user_ids wiring (no monkeypatching) to verify
+    the block relationship is filtered symmetrically regardless of who blocked whom."""
+
+    def _mock_blocks_table(self, supabase_mock, blocked_by_buyer=None, blockers_of_buyer=None):
+        def select_side_effect(column):
+            query = MagicMock()
+            if column == "blocked_id":
+                query.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+                    data=blocked_by_buyer or []
+                )
+            else:
+                query.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+                    data=blockers_of_buyer or []
+                )
+            return query
+
+        supabase_mock.table("blocks").select.side_effect = select_side_effect
+
+    def test_excludes_listings_from_a_seller_the_buyer_blocked(self, authed_client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(
+                data=[
+                    {"id": "1", "seller_id": "user-1", "crop_name": "Tomato"},
+                    {"id": "2", "seller_id": "blocked-seller", "crop_name": "Corn"},
+                ]
+            )
+        )
+        supabase_mock.table("profiles").select.return_value.in_.return_value.execute.return_value = SimpleNamespace(
+            data=[{"user_id": "user-1", "name": "Farmer Joe"}, {"user_id": "blocked-seller", "name": "Blocked Seller"}]
+        )
+        self._mock_blocks_table(supabase_mock, blocked_by_buyer=[{"blocked_id": "blocked-seller"}])
+
+        response = authed_client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        assert [listing["id"] for listing in response.json()] == ["1"]
+
+    def test_excludes_listings_from_a_seller_who_blocked_the_buyer(self, authed_client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(
+                data=[
+                    {"id": "1", "seller_id": "user-1", "crop_name": "Tomato"},
+                    {"id": "2", "seller_id": "blocking-seller", "crop_name": "Corn"},
+                ]
+            )
+        )
+        supabase_mock.table("profiles").select.return_value.in_.return_value.execute.return_value = SimpleNamespace(
+            data=[{"user_id": "user-1", "name": "Farmer Joe"}, {"user_id": "blocking-seller", "name": "Blocking Seller"}]
+        )
+        self._mock_blocks_table(supabase_mock, blockers_of_buyer=[{"blocker_id": "blocking-seller"}])
+
+        response = authed_client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        assert [listing["id"] for listing in response.json()] == ["1"]
 
 
 class TestGetMyListings:

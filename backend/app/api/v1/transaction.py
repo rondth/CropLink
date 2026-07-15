@@ -5,7 +5,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
-from app.utils import calculate_total, sort_and_deduplicate, get_rate_to_usd
+from app.utils import calculate_total, sort_and_deduplicate, get_rate_to_usd, get_blocked_user_ids
 from typing import Literal
 
 load_dotenv()
@@ -53,6 +53,8 @@ async def create_transaction(payload: TransactionCreate, buyer_id: str = Depends
         raise HTTPException(status_code=400, detail="Listing is no longer active")
     if listing.data["seller_id"] == buyer_id:
         raise HTTPException(status_code=400, detail="You cannot buy your own listing")
+    if listing.data["seller_id"] in get_blocked_user_ids(supabase, buyer_id):
+        raise HTTPException(status_code=403, detail="Unable to transact with this seller")
     min_qty = listing.data.get("min_order_quantity")
     if min_qty is not None and payload.quantity < min_qty:
         raise HTTPException(status_code=400, detail=f"Minimum order quantity is {min_qty}")
