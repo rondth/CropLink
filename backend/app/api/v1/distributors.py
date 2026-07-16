@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.dependencies import get_current_user, get_current_user_id
 from app.core.supabase import supabase
-from app.utils import score_buyer
+from app.utils import score_buyer, get_blocked_user_ids
 
 router = APIRouter(prefix="/distributors", tags=["distributors"])
 
@@ -19,7 +19,12 @@ def get_recommended_distributors(
     if role != "seller":
         raise HTTPException(status_code=403, detail="Only sellers can view recommended distributors")
 
-    buyers = supabase.table("profiles").select("user_id, name, profile_picture_url").eq("role", "buyer").execute().data
+    excluded_ids = get_blocked_user_ids(supabase, user_id)
+
+    buyers_query = supabase.table("profiles").select("user_id, name, profile_picture_url").eq("role", "buyer")
+    if excluded_ids:
+        buyers_query = buyers_query.not_.in_("user_id", list(excluded_ids))
+    buyers = buyers_query.execute().data
     if not buyers:
         return []
     buyer_ids = [b["user_id"] for b in buyers]
