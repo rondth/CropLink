@@ -12,26 +12,14 @@ def _mock_blocks(supabase_mock, blocked_by_seller=None, blockers_of_seller=None)
     ]
 
 
-def _mock_empty_reviews_and_transactions(supabase_mock):
-    supabase_mock.table("user_reviews").select.return_value.in_.return_value.execute.return_value = (
-        SimpleNamespace(data=[])
-    )
-    supabase_mock.table(
-        "transaction"
-    ).select.return_value.eq.return_value.eq.return_value.in_.return_value.execute.return_value = (
-        SimpleNamespace(data=[])
-    )
-
-
 class TestRecommendedDistributors:
     def test_excludes_buyer_who_blocked_seller(self, authed_client, supabase_mock):
         _mock_blocks(supabase_mock, blockers_of_seller=[{"blocker_id": "buyer-blocker"}])
         supabase_mock.table(
             "profiles"
         ).select.return_value.eq.return_value.not_.in_.return_value.execute.return_value = SimpleNamespace(
-            data=[{"user_id": "buyer-ok", "name": "OK Buyer", "profile_picture_url": None}]
+            data=[{"user_id": "buyer-ok", "name": "OK Buyer", "profile_picture_url": None, "trust_score": 3.0}]
         )
-        _mock_empty_reviews_and_transactions(supabase_mock)
 
         response = authed_client.get("/api/v1/distributors/recommended")
 
@@ -42,21 +30,22 @@ class TestRecommendedDistributors:
             "user_id", ["buyer-blocker"]
         )
 
-    def test_no_blocks_behaves_identically_to_before(self, authed_client, supabase_mock):
+    def test_ranks_buyers_by_trust_score_descending(self, authed_client, supabase_mock):
         _mock_blocks(supabase_mock)
         supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
             data=[
-                {"user_id": "buyer-a", "name": "A", "profile_picture_url": None},
-                {"user_id": "buyer-b", "name": "B", "profile_picture_url": None},
+                {"user_id": "buyer-a", "name": "A", "profile_picture_url": None, "trust_score": 2.1, "trust_score_basis": "Mixed reviews"},
+                {"user_id": "buyer-b", "name": "B", "profile_picture_url": None, "trust_score": 4.8, "trust_score_basis": "Highly rated; strong payment history"},
             ]
         )
-        _mock_empty_reviews_and_transactions(supabase_mock)
 
         response = authed_client.get("/api/v1/distributors/recommended")
 
         assert response.status_code == 200
         body = response.json()
-        assert {b["buyer_id"] for b in body} == {"buyer-a", "buyer-b"}
+        assert [b["buyer_id"] for b in body] == ["buyer-b", "buyer-a"]
+        assert [b["trust_score"] for b in body] == [4.8, 2.1]
+        assert body[0]["trust_score_basis"] == "Highly rated; strong payment history"
         supabase_mock.table("profiles").select.return_value.eq.return_value.not_.in_.assert_not_called()
 
     def test_returns_empty_list_when_all_eligible_buyers_blocked(self, authed_client, supabase_mock):

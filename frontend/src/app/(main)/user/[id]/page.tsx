@@ -297,7 +297,7 @@ export default function PublicProfile() {
                     <div className="flex flex-col items-center gap-0.5">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
                         <span className="text-xl font-black text-amber-500">
-                            {avgRating ? `★ ${avgRating}` : '★ —'}
+                            {avgRating ? `★ ${avgRating}` : '★ -'}
                         </span>
                     </div>
                 </div>

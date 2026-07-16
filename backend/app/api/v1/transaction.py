@@ -5,7 +5,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from app.core.dependencies import get_current_user_id
-from app.utils import calculate_total, sort_and_deduplicate, get_rate_to_usd, get_blocked_user_ids
+from app.utils import calculate_total, sort_and_deduplicate, get_rate_to_usd, get_blocked_user_ids, recompute_trust_score
 from typing import Literal
 
 load_dotenv()
@@ -120,8 +120,10 @@ async def stripe_webhook(request: Request):
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
 
-        txn = supabase.table("transaction").select("listing_id, quantity").eq("id", txn_id).execute()
+        txn = supabase.table("transaction").select("listing_id, quantity, buyer_id, seller_id").eq("id", txn_id).execute()
         if txn.data:
+            recompute_trust_score(supabase, txn.data[0]["buyer_id"])
+            recompute_trust_score(supabase, txn.data[0]["seller_id"])
             try:
                 supabase.rpc("reduce_listing_quantity", {
                     "p_listing_id": txn.data[0]["listing_id"],
@@ -135,6 +137,9 @@ async def stripe_webhook(request: Request):
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
+        txn = supabase.table("transaction").select("buyer_id").eq("id", txn_id).execute()
+        if txn.data:
+            recompute_trust_score(supabase, txn.data[0]["buyer_id"])
     elif event["type"] == "payment_intent.cancelled":
         metadata = event["data"]["object"]["metadata"]
         txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
@@ -151,6 +156,10 @@ async def stripe_webhook(request: Request):
         if txn.data and txn.data[0]["status"] != "cancelled":
             supabase.table("payments").update({"status": "refunded"}).eq("transaction_id", txn_id).execute()
             supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
+        txn = supabase.table("transaction").select("buyer_id, seller_id").eq("id", txn_id).execute()
+        if txn.data:
+            recompute_trust_score(supabase, txn.data[0]["buyer_id"])
+            recompute_trust_score(supabase, txn.data[0]["seller_id"])
 
     return {"status": "ok"}
 
@@ -220,6 +229,8 @@ async def cancel_transaction(txn_id: str, user_id: str = Depends(get_current_use
             pass
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
     supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
+    recompute_trust_score(supabase, txn.data["buyer_id"])
+    recompute_trust_score(supabase, txn.data["seller_id"])
     return {"status": "cancelled"}
 
 @router.get("/transactions/{txn_id}/client-secret")
@@ -240,6 +251,8 @@ async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user
     if intent.status == "succeeded":
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
+        recompute_trust_score(supabase, txn.data["buyer_id"])
+        recompute_trust_score(supabase, txn.data["seller_id"])
         raise HTTPException(status_code=400, detail="already_paid")
     reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
     if intent.status not in reusable:

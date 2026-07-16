@@ -281,7 +281,7 @@ export default function ConversationThreadPage() {
             <div className="flex-1 px-4 py-3 flex flex-col gap-1">
                 {isOffline ? (
                     <div className="sticky top-0 z-10 flex justify-center py-1.5 mb-1 bg-gray-100 border border-gray-200 rounded-lg">
-                        <span className="text-[11px] font-bold text-gray-500">You&apos;re offline — messages will send once you&apos;re back online</span>
+                        <span className="text-[11px] font-bold text-gray-500">You&apos;re offline, messages will send once you&apos;re back online</span>
                     </div>
                 ) : connectionStatus !== 'connected' && (
                     <div className="sticky top-0 z-10 flex justify-center py-1.5 mb-1 bg-amber-50 border border-amber-100 rounded-lg">

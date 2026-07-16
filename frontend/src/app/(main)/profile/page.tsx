@@ -242,7 +242,7 @@ export default function Profile() {
             <div className="relative">
                 <div className="h-32 bg-[#deebd8]" />
 
-                {/* edit / save / cancel — top right */}
+                {/* edit / save / cancel top right */}
                 <div className="absolute top-4 right-4 flex gap-2 z-20">
                     {!isEditing ? (
                         <button
@@ -355,7 +355,7 @@ export default function Profile() {
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
                     <span className="text-xl font-black text-gray-800">
-                        {reviewsLoading ? '—' : reviews.length}
+                        {reviewsLoading ? '-' : reviews.length}
                     </span>
                 </div>
 
@@ -364,7 +364,7 @@ export default function Profile() {
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
                     <span className="text-xl font-black text-amber-500">
-                        {reviewsLoading ? '—' : avgRating ? `★ ${avgRating}` : '★ —'}
+                        {reviewsLoading ? '-' : avgRating ? `★ ${avgRating}` : '★ -'}
                     </span>
                 </div>
             </div>

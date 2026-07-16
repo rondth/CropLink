@@ -134,12 +134,111 @@ def apply_converted_prices(supabase, listings: list[dict], target_currency: str)
         listing["converted_currency"] = target_currency
 
 
-def score_buyer(review_score: float | None, category_match_count: int) -> tuple[float, str]:
-    if category_match_count > 0:
-        base = review_score if review_score is not None else 2.5
-        score = 0.6 * base + 0.4 * min(category_match_count, 5)
-        return score, "review_score_and_history"
-    return (review_score if review_score is not None else 0.0), "review_score_only"
+TRUST_SCORE_NEUTRAL = 2.5
+REVIEW_WEIGHT = 0.5
+PAYMENT_WEIGHT = 0.3
+COMPLETION_WEIGHT = 0.2
+
+
+def calculate_trust_score(
+    review_avg: float | None,
+    payment_success_rate: float | None,
+    completion_rate: float | None,
+) -> float:
+    review_component = review_avg if review_avg is not None else TRUST_SCORE_NEUTRAL
+    payment_component = (
+        payment_success_rate * 5 if payment_success_rate is not None else TRUST_SCORE_NEUTRAL
+    )
+    completion_component = (
+        completion_rate * 5 if completion_rate is not None else TRUST_SCORE_NEUTRAL
+    )
+    score = (
+        REVIEW_WEIGHT * review_component
+        + PAYMENT_WEIGHT * payment_component
+        + COMPLETION_WEIGHT * completion_component
+    )
+    return round(score, 2)
+
+
+def describe_trust_score(
+    review_avg: float | None,
+    payment_success_rate: float | None,
+    completion_rate: float | None,
+    review_count: int,
+) -> str:
+    if review_count == 0 and payment_success_rate is None and completion_rate is None:
+        return "New user (no trust history yet)"
+
+    reasons = []
+    if review_avg is not None:
+        if review_avg >= 4:
+            reasons.append(f"Highly rated ({review_avg}★ from {review_count} review{'s' if review_count != 1 else ''})")
+        elif review_avg >= 3:
+            reasons.append(f"Positively rated ({review_avg}★ from {review_count} review{'s' if review_count != 1 else ''})")
+        else:
+            reasons.append(f"Mixed reviews ({review_avg}★ from {review_count} review{'s' if review_count != 1 else ''})")
+
+    if payment_success_rate is not None:
+        if payment_success_rate >= 0.9:
+            reasons.append(f"strong payment history ({round(payment_success_rate * 100)}% successful)")
+        elif payment_success_rate >= 0.5:
+            reasons.append(f"decent payment history ({round(payment_success_rate * 100)}% successful)")
+        else:
+            reasons.append(f"inconsistent payment history ({round(payment_success_rate * 100)}% successful)")
+
+    if completion_rate is not None:
+        if completion_rate >= 0.9:
+            reasons.append(f"reliably completes orders ({round(completion_rate * 100)}%)")
+        elif completion_rate >= 0.5:
+            reasons.append(f"usually completes orders ({round(completion_rate * 100)}%)")
+        else:
+            reasons.append(f"often cancels orders ({round(completion_rate * 100)}%)")
+
+    if not reasons:
+        return "New user (no trust history yet)"
+    return "; ".join(reasons).capitalize()
+
+
+def recompute_trust_score(supabase, user_id: str) -> float:
+    reviews = (
+        supabase.table("user_reviews")
+        .select("rating")
+        .or_(f"buyer_id.eq.{user_id},seller_id.eq.{user_id}")
+        .execute()
+        .data
+    )
+    review_avg = round(sum(r["rating"] for r in reviews) / len(reviews), 2) if reviews else None
+
+    payments = (
+        supabase.table("payments")
+        .select("status, transaction:transaction!inner(buyer_id)")
+        .eq("transaction.buyer_id", user_id)
+        .in_("status", ["paid", "failed"])
+        .execute()
+        .data
+    )
+    payment_success_rate = (
+        sum(1 for p in payments if p["status"] == "paid") / len(payments) if payments else None
+    )
+
+    transactions = (
+        supabase.table("transaction")
+        .select("status")
+        .or_(f"buyer_id.eq.{user_id},seller_id.eq.{user_id}")
+        .in_("status", ["completed", "cancelled"])
+        .execute()
+        .data
+    )
+    completion_rate = (
+        sum(1 for t in transactions if t["status"] == "completed") / len(transactions)
+        if transactions
+        else None
+    )
+
+    score = calculate_trust_score(review_avg, payment_success_rate, completion_rate)
+    basis = describe_trust_score(review_avg, payment_success_rate, completion_rate, len(reviews))
+    supabase.table("profiles").update({"trust_score": score, "trust_score_basis": basis}).eq("user_id", user_id).execute()
+    return score
 
 
 async def get_subtotal_in_usd(transaction, db) -> float | None:
