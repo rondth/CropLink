@@ -15,7 +15,7 @@ export default function Profile() {
 
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState('');
-    const [prefferedCurrency, setprefferedCurrency] = useState('USD');
+    const [preferredCurrency, setPreferredCurrency] = useState('USD');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -38,13 +38,13 @@ export default function Profile() {
             api.get('/auth/me').then(res => {
                 setName(res.data.name || '');
                 setAvatarUrl(res.data.profile_picture_url || null);
-                setprefferedCurrency(res.data.preferred_currency || 'USD');
+                setPreferredCurrency(res.data.preferred_currency || 'USD');
                 setBio(res.data.bio || '');
                 setNumListings(res.data.num_listings || 0);
                 setProfileLoading(false);
             }).catch(() => {
                 setName(user.name || '');
-                setprefferedCurrency(user.preferred_currency || 'USD');
+                setPreferredCurrency(user.preferred_currency || 'USD');
                 setProfileLoading(false);
             });
         }
@@ -176,7 +176,7 @@ export default function Profile() {
                 }
             }
 
-            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preferred_currency: prefferedCurrency, bio });
+            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preferred_currency: preferredCurrency, bio });
 
             setAvatarUrl(finalAvatarUrl);
             setIsEditing(false);
@@ -198,7 +198,7 @@ export default function Profile() {
         api.get('/auth/me').then(res => {
             setName(res.data.name || '');
             setAvatarUrl(res.data.profile_picture_url || null);
-            setprefferedCurrency(res.data.preferred_currency || 'USD');
+            setPreferredCurrency(res.data.preferred_currency || 'USD');
             setBio(res.data.bio || '');
         });
     };
@@ -375,8 +375,8 @@ export default function Profile() {
                 {isEditing ? (
                     <div className="relative">
                         <select
-                            value={prefferedCurrency}
-                            onChange={(e) => setprefferedCurrency(e.target.value)}
+                            value={preferredCurrency}
+                            onChange={(e) => setPreferredCurrency(e.target.value)}
                             className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm font-bold rounded-xl p-2.5 outline-none focus:border-CropLink-primary transition-colors appearance-none pr-10"
                         >
                             <option value="USD">USD</option>
@@ -397,7 +397,7 @@ export default function Profile() {
                     <div className="flex items-center gap-2">
                         <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
                         <span className="inline-flex px-2.5 py-0.5 text-[10px] font-black rounded-full bg-green-50 text-green-700">
-                            {prefferedCurrency}
+                            {preferredCurrency}
                         </span>
                     </div>
                 )}

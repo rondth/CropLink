@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle, User, MoreVertical, Ban, Flag } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, createConversation } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import ProductDetails from '@/components/marketplace/ProductDetails';
@@ -31,6 +31,7 @@ export default function PublicProfile() {
     const [reportSubmitting, setReportSubmitting] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);
     const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [isMessaging, setIsMessaging] = useState(false);
 
     const avgRating = reviews.length
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
@@ -48,6 +49,24 @@ export default function PublicProfile() {
             .then(res => setIsBlocked(res.data.some((u: any) => u.user_id === userId)))
             .catch(() => {});
     }, [isAuthenticated, userId, isOwnProfile]);
+
+    const handleMessageSeller = async () => {
+        if (!isAuthenticated) {
+            router.push('/login');
+            return;
+        }
+        if (!listings.length) return;
+
+        setIsMessaging(true);
+        try {
+            const conversation = await createConversation(listings[0].id);
+            router.push(`/messages/${conversation.id}`);
+        } catch (err: any) {
+            setToast({ type: 'error', message: err?.response?.data?.detail || 'Failed to start conversation. Please try again.' });
+        } finally {
+            setIsMessaging(false);
+        }
+    };
 
     const handleBlockClick = () => {
         setMenuOpen(false);
@@ -290,6 +309,19 @@ export default function PublicProfile() {
                     {profile.bio || <span className="text-gray-400 italic">No bio yet.</span>}
                 </p>
             </div>
+
+            {/* message seller */}
+            {profile.role === 'seller' && !isOwnProfile && listings.length > 0 && (
+                <div className="mx-5 mt-3">
+                    <button
+                        onClick={handleMessageSeller}
+                        disabled={isMessaging}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-CropLink-primary text-white text-sm font-black active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                        {isMessaging ? 'Starting conversation...' : 'Message Seller'}
+                    </button>
+                </div>
+            )}
 
             {/* reviews */}
             {profile.role === 'seller' && (

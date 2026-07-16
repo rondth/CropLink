@@ -113,6 +113,118 @@ export const cancelTransaction = async (txn_id: string): Promise<{ status: strin
     return response.data;
 }
 
+// ====== Messaging API ======
+
+export interface ConversationListing {
+    id: string;
+    crop_name: string;
+    photo_url: string | null;
+}
+
+export interface ConversationParticipant {
+    user_id: string;
+    name: string | null;
+    profile_picture_url: string | null;
+}
+
+export interface ConversationLastMessage {
+    content: string;
+    created_at: string;
+}
+
+export interface Conversation {
+    id: string;
+    listing: ConversationListing | null;
+    other_participant: ConversationParticipant | null;
+    last_message: ConversationLastMessage | null;
+    unread_count: number;
+}
+
+export interface ConversationRecord {
+    id: string;
+    listing_id: string;
+    buyer_id: string;
+    seller_id: string;
+    last_message_at: string | null;
+}
+
+export interface ConversationDetail {
+    id: string;
+    listing: ConversationListing | null;
+    other_participant: ConversationParticipant | null;
+}
+
+export interface Message {
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    content: string;
+    created_at: string;
+    read_at: string | null;
+    client_msg_id?: string | null;
+}
+
+export const getConversations = async (): Promise<Conversation[]> => {
+    const response = await api.get<Conversation[]>('/conversations/');
+    return response.data;
+}
+
+export const createConversation = async (listing_id: string): Promise<ConversationRecord> => {
+    const response = await api.post<ConversationRecord>('/conversations/', { listing_id });
+    return response.data;
+}
+
+export const getConversation = async (conversationId: string): Promise<ConversationDetail> => {
+    const response = await api.get<ConversationDetail>(`/conversations/${conversationId}`);
+    return response.data;
+}
+
+export const getMessages = async (
+    conversationId: string,
+    params: { limit?: number; before?: string; after?: string } = {}
+): Promise<Message[]> => {
+    const response = await api.get<Message[]>(`/conversations/${conversationId}/messages`, {
+        params: { limit: params.limit ?? 50, before: params.before, after: params.after },
+    });
+    return response.data;
+}
+
+export const sendMessage = async (
+    conversationId: string,
+    content: string,
+    clientMsgId: string
+): Promise<Message> => {
+    const response = await api.post<Message>(`/conversations/${conversationId}/messages`, {
+        content,
+        client_msg_id: clientMsgId,
+    });
+    return response.data;
+}
+
+export const markConversationRead = async (conversationId: string): Promise<{ marked_count: number }> => {
+    const response = await api.patch<{ marked_count: number }>(`/conversations/${conversationId}/read`);
+    return response.data;
+}
+
+export const getUnreadMessageCount = async (): Promise<number> => {
+    const response = await api.get<{ total: number }>('/conversations/unread-count');
+    return response.data.total;
+}
+
+// ====== Notifications API ======
+
+export interface MessageNotification {
+    conversation_id: string;
+    other_participant: ConversationParticipant | null;
+    preview: string;
+    unread_count: number;
+    last_message_at: string | null;
+}
+
+export const getMessageNotifications = async (): Promise<MessageNotification[]> => {
+    const response = await api.get<MessageNotification[]>('/notifications/messages');
+    return response.data;
+}
 // Distributor Recommendations API 
 
 export interface RecommendedDistributor {

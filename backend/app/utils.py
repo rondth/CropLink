@@ -51,6 +51,22 @@ def get_blocked_user_ids(supabase, user_id: str) -> set[str]:
     return ids
 
 
+def is_blocked_between(supabase, user_a: str, user_b: str) -> bool:
+    """Return True if an active block exists between the two users, in either direction."""
+    response = (
+        supabase.table("blocks")
+        .select("id")
+        .eq("status", "active")
+        .or_(
+            f"and(blocker_id.eq.{user_a},blocked_id.eq.{user_b}),"
+            f"and(blocker_id.eq.{user_b},blocked_id.eq.{user_a})"
+        )
+        .limit(1)
+        .execute()
+    )
+    return bool(response.data)
+
+
 def get_rate_to_usd(supabase, currency: str) -> float | None:
     result = supabase.table("exchange_rate") \
         .select("rate_to_usd") \

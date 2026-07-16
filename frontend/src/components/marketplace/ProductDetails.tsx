@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { api } from '@/lib/api';
+import { api, createConversation } from '@/lib/api';
 import PriceTrendChart from '@/components/ui/PriceTrendChart';
 
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
@@ -109,6 +109,8 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
         : null;
     const [isOrdering, setIsOrdering] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
+    const [isMessaging, setIsMessaging] = useState(false);
+    const [messageError, setMessageError] = useState<string | null>(null);
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
@@ -134,6 +136,24 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
             setOrderError(err?.response?.data?.detail || 'Failed to place order. Please try again.');
         } finally {
             setIsOrdering(false);
+        }
+    };
+
+    const handleMessageSeller = async () => {
+        if (!isAuthenticated) {
+            router.push('/login');
+            return;
+        }
+
+        setIsMessaging(true);
+        setMessageError(null);
+        try {
+            const conversation = await createConversation(product.id);
+            router.push(`/messages/${conversation.id}`);
+        } catch (err: any) {
+            setMessageError(err?.response?.data?.detail || 'Failed to start conversation. Please try again.');
+        } finally {
+            setIsMessaging(false);
         }
     };
 
@@ -289,6 +309,19 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                             <div className="h-2.5 bg-gray-200 rounded w-1/3" />
                         </div>
                     </div>
+                )}
+
+                {!isOwnListing && (
+                    <button
+                        onClick={handleMessageSeller}
+                        disabled={isMessaging}
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-CropLink-primary text-CropLink-primary text-xs font-black active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                        {isMessaging ? 'Starting conversation...' : 'Message Seller'}
+                    </button>
+                )}
+                {messageError && (
+                    <p className="text-[11px] font-bold text-CropLink-accentRed mt-2 text-center">{messageError}</p>
                 )}
             </div>
                    {/* seller reviews */}
