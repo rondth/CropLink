@@ -25,6 +25,7 @@ markdown-it-py==4.2.0
 mdurl==0.1.2
 mmh3==5.2.1
 multidict==6.7.1
+numpy==2.5.1
 packaging==26.2
 passlib==1.7.4
 postgrest==2.30.0
@@ -62,5 +63,6 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 uvicorn==0.47.0
 websockets==15.0.1
+xgboost-cpu==3.3.0
 yarl==1.23.0
 zstandard==0.25.0
