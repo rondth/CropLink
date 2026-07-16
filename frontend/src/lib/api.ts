@@ -165,12 +165,12 @@ export interface Message {
 }
 
 export const getConversations = async (): Promise<Conversation[]> => {
-    const response = await api.get<Conversation[]>('/conversations');
+    const response = await api.get<Conversation[]>('/conversations/');
     return response.data;
 }
 
 export const createConversation = async (listing_id: string): Promise<ConversationRecord> => {
-    const response = await api.post<ConversationRecord>('/conversations', { listing_id });
+    const response = await api.post<ConversationRecord>('/conversations/', { listing_id });
     return response.data;
 }
 

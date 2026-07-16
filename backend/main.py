@@ -7,6 +7,7 @@ app = FastAPI(
     title="CropLink API",
     description="Farmer-Distributor Marketplace Backend",
     version="0.1.0",
+    redirect_slashes=False,
 )
 
 app.add_middleware(
