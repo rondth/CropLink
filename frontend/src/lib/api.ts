@@ -113,26 +113,6 @@ export const cancelTransaction = async (txn_id: string): Promise<{ status: strin
     return response.data;
 }
 
-// Distributor Recommendations API 
-
-export interface RecommendedDistributor {
-    buyer_id: string;
-    name: string | null;
-    profile_picture_url: string | null;
-    review_score: number | null;
-    review_count: number;
-    category_match_count: number;
-    score: number;
-    basis: 'review_score_and_history' | 'review_score_only';
-}
-
-export const getRecommendedDistributors = async (
-    limit: number = 5
-): Promise<RecommendedDistributor[]> => {
-    const response = await api.get<RecommendedDistributor[]>('/distributors/recommended', { params: { limit } });
-    return response.data;
-}
-
 // ====== Messaging API ======
 
 export interface ConversationListing {

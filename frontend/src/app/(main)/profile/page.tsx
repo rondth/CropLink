@@ -22,6 +22,7 @@ export default function Profile() {
     const [isSaving, setIsSaving] = useState(false);
     const [profileLoading, setProfileLoading] = useState(true);
     const [numListings, setNumListings] = useState(0);
+    const [trustScore, setTrustScore] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -41,6 +42,7 @@ export default function Profile() {
                 setPreferredCurrency(res.data.preferred_currency || 'USD');
                 setBio(res.data.bio || '');
                 setNumListings(res.data.num_listings || 0);
+                setTrustScore(res.data.trust_score ?? null);
                 setProfileLoading(false);
             }).catch(() => {
                 setName(user.name || '');
@@ -353,9 +355,12 @@ export default function Profile() {
                 <div className="w-px h-8 bg-gray-100" />
 
                 <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                    <span className="text-xl font-black text-gray-800">
-                        {reviewsLoading ? '-' : reviews.length}
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Review Ratings</span>
+                    <span className="text-xl font-black text-amber-500">
+                        {reviewsLoading ? '-' : avgRating ? `★ ${avgRating}` : '★ -'}
+                    </span>
+                    <span className="text-[9px] text-gray-400 font-medium">
+                        {reviewsLoading ? '' : `${reviews.length} review${reviews.length === 1 ? '' : 's'}`}
                     </span>
                 </div>
 
@@ -364,7 +369,7 @@ export default function Profile() {
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
                     <span className="text-xl font-black text-amber-500">
-                        {reviewsLoading ? '-' : avgRating ? `★ ${avgRating}` : '★ -'}
+                        {profileLoading || trustScore === null ? '-' : `★ ${trustScore.toFixed(2)}`}
                     </span>
                 </div>
             </div>
