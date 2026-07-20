@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import stripe
+
 
 class TestCreateTransactionBlocking:
     def test_403_when_seller_has_blocked_buyer(self, authed_client, supabase_mock, monkeypatch):
@@ -147,3 +149,77 @@ class TestCompleteTransaction:
         assert response.status_code == 200
         assert response.json()["status"] == "completed"
         supabase_mock.table("transaction").update.assert_any_call({"status": "completed"})
+
+
+class TestRefundTransaction:
+    def _set_txn(self, supabase_mock, status="paid", seller_id="seller-1", buyer_id="buyer-1"):
+        supabase_mock.table(
+            "transaction"
+        ).select.return_value.eq.return_value.single.return_value.execute.return_value = SimpleNamespace(
+            data={
+                "id": "txn-1",
+                "status": status,
+                "seller_id": seller_id,
+                "buyer_id": buyer_id,
+                "listing_id": "listing-1",
+                "quantity": 5,
+            }
+        )
+
+    def test_403_when_not_the_seller(self, authed_as, supabase_mock):
+        client = authed_as(user_id="not-the-seller")
+        self._set_txn(supabase_mock)
+
+        response = client.post("/api/v1/transactions/txn-1/refund")
+
+        assert response.status_code == 403
+
+    def test_400_when_status_is_not_paid(self, authed_as, supabase_mock):
+        client = authed_as(user_id="seller-1")
+        self._set_txn(supabase_mock, status="pending")
+
+        response = client.post("/api/v1/transactions/txn-1/refund")
+
+        assert response.status_code == 400
+
+    def test_successful_refund_updates_transaction_and_payment_status(self, authed_as, supabase_mock, monkeypatch):
+        client = authed_as(user_id="seller-1")
+        self._set_txn(supabase_mock)
+        supabase_mock.table(
+            "payments"
+        ).select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[{"stripe_id": "pi_123"}]
+        )
+        monkeypatch.setattr(
+            "app.api.v1.transaction.stripe.Refund.create", MagicMock(return_value=SimpleNamespace(id="re_123"))
+        )
+        supabase_mock.rpc.return_value.execute.return_value = SimpleNamespace(data=None)
+
+        response = client.post("/api/v1/transactions/txn-1/refund")
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "refunded"}
+        supabase_mock.table("payments").update.assert_any_call({"status": "refunded"})
+        supabase_mock.table("transaction").update.assert_any_call({"status": "cancelled"})
+        supabase_mock.rpc.assert_any_call(
+            "increase_listing_quantity", {"p_listing_id": "listing-1", "p_quantity": 5}
+        )
+
+    def test_stripe_error_returns_400_with_clear_message(self, authed_as, supabase_mock, monkeypatch):
+        client = authed_as(user_id="seller-1")
+        self._set_txn(supabase_mock)
+        supabase_mock.table(
+            "payments"
+        ).select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[{"stripe_id": "pi_123"}]
+        )
+
+        def raise_invalid_request(*args, **kwargs):
+            raise stripe.error.InvalidRequestError("The charge has already been refunded.", param=None)
+
+        monkeypatch.setattr("app.api.v1.transaction.stripe.Refund.create", raise_invalid_request)
+
+        response = client.post("/api/v1/transactions/txn-1/refund")
+
+        assert response.status_code == 400
+        assert "already been refunded" in response.json()["detail"]
