@@ -7,13 +7,14 @@ import { useRouter } from 'next/navigation';
 
 const STATUS_STYLES: Record<string, string> = {
     completed: 'bg-green-50 text-green-600',
+    paid: 'bg-blue-50 text-blue-600',
     pending: 'bg-orange-50 text-orange-500',
     cancelled: 'bg-red-50 text-red-500',
 };
 
 const PLATFORM_FEE_RATE = 0.02 // 2%
 
-const FILTERS = ['all', 'pending', 'completed', 'cancelled'] as const;
+const FILTERS = ['all', 'pending', 'paid', 'completed', 'cancelled'] as const;
 type Filter = typeof FILTERS[number];
 
 export default function OrdersPage() {

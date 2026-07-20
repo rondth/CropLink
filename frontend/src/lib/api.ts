@@ -76,7 +76,7 @@ export interface Transaction {
     seller_id: string;
     quantity: number;
     currency: string;
-    status: 'pending' | 'completed' | 'cancelled';
+    status: 'pending' | 'paid' | 'completed' | 'cancelled';
     created_at: string;
     payment?: {
         status: 'pending' | 'paid' | 'failed';

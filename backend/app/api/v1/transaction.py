@@ -118,7 +118,7 @@ async def stripe_webhook(request: Request):
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
-        supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+        supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
 
         txn = supabase.table("transaction").select("listing_id, quantity").eq("id", txn_id).execute()
         if txn.data:
@@ -230,7 +230,7 @@ async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user
     intent = stripe.PaymentIntent.retrieve(payment.data[0]["stripe_id"])
     if intent.status == "succeeded":
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
-        supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+        supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
         raise HTTPException(status_code=400, detail="already_paid")
     reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
     if intent.status not in reusable:
@@ -277,7 +277,7 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
         intent = stripe.PaymentIntent.retrieve(payment_res.data[0]["stripe_id"])
         if intent.status == "succeeded":
             supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
-            supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+            supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
             raise HTTPException(status_code=400, detail="already_paid")
         
         reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
@@ -290,5 +290,19 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
                 raise HTTPException(status_code=400, detail=f"Could not update payment: {str(e)}")
 
     supabase.table("transaction").update({"quantity": payload.quantity}).eq("id", txn_id).execute()
+    updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()
+    return updated.data[0]
+
+@router.post("/transactions/{txn_id}/complete")
+async def complete_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["seller_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the seller can mark this transaction as delivered")
+    if txn.data["status"] != "paid":
+        raise HTTPException(status_code=400, detail=f"Cannot complete a transaction with status '{txn.data['status']}'")
+
+    supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
     updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()
     return updated.data[0]

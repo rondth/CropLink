@@ -34,6 +34,7 @@ interface Transaction {
 
 const STATUS_STYLES: Record<string, string> = {
     completed: 'bg-green-50 text-green-600 border border-green-100',
+    paid:      'bg-blue-50 text-blue-600 border border-blue-100',
     pending:   'bg-orange-50 text-orange-500 border border-orange-100',
     cancelled: 'bg-red-50 text-red-500 border border-red-100',
 };
@@ -97,6 +98,19 @@ export default function OrderDetailPage() {
         } catch (err: any) {
             console.log(err?.response);
             setErrorMessage(err?.response?.data?.detail || 'Failed to cancel order.');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleMarkDelivered = async () => {
+        if (!order) return;
+        setUpdating(true);
+        try {
+            await api.post(`/transactions/${order.id}/complete`);
+            setOrder(prev => prev ? { ...prev, status: 'completed' } : prev);
+        } catch (err: any) {
+            setErrorMessage(err?.response?.data?.detail || 'Failed to mark order as delivered.');
         } finally {
             setUpdating(false);
         }
@@ -168,6 +182,7 @@ export default function OrderDetailPage() {
     if (!order) return null;
 
     const isBuyer = order.buyer_id === userId;
+    const isSeller = order.seller_id === userId;
     const counterpartyId = isBuyer ? order.seller_id : order.buyer_id;
     const counterpartyLabel = isBuyer ? 'Farmer / Seller' : 'Distributor / Buyer';
 
@@ -376,6 +391,19 @@ export default function OrderDetailPage() {
                             </button>
                         </>
                     )}
+                </div>
+            )}
+
+            {/* Mark as delivered (seller only, paid orders) */}
+            {isSeller && order.status === 'paid' && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3">
+                    <button
+                        onClick={handleMarkDelivered}
+                        disabled={updating}
+                        className="w-full bg-CropLink-primary text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 disabled:opacity-50 active:scale-95 transition-transform"
+                    >
+                        {updating ? 'Updating...' : 'Mark as Delivered'}
+                    </button>
                 </div>
             )}
 
