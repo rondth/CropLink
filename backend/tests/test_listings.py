@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 def valid_listing_payload(**overrides):
     payload = {
         "crop_name": "Tomato",
-        "category": "Vegetable",
+        "category": "Vegetables & Fruits",
         "currency": "USD",
         "price": 10,
         "unit_of_measurement": "kg",
@@ -46,6 +46,13 @@ class TestCreateListing:
     def test_rejects_future_harvest_date(self, authed_client):
         response = authed_client.post(
             "/api/v1/listings/", json=valid_listing_payload(harvested_at="2099-01-01T00:00:00Z")
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_invalid_category(self, authed_client):
+        response = authed_client.post(
+            "/api/v1/listings/", json=valid_listing_payload(category="cereals and tubers")
         )
 
         assert response.status_code == 422
