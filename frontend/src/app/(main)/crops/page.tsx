@@ -167,6 +167,7 @@ export default function CropsListing() {
                         <option value="Oil & Fats">Oil & Fats</option>
                         <option value="Pulses & Nuts">Pulses & Nuts</option>
                         <option value="Vegetables & Fruits">Vegetables & Fruits</option>
+                        <option value="Others">Others</option>
                     </select>
                 </div>
                 

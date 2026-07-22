@@ -11,9 +11,18 @@ router = APIRouter(prefix="/listings", tags=["listings"])
 
 # SCHEMAS
 
+ListingCategory = Literal[
+    "Cereals & Tubers",
+    "Meat, Fish & Eggs",
+    "Oil & Fats",
+    "Pulses & Nuts",
+    "Vegetables & Fruits",
+    "Others",
+]
+
 class ListingCreate(BaseModel):
     crop_name: str = Field(..., min_length=1, max_length=100)
-    category: str = Field(..., min_length=1, max_length=50)
+    category: ListingCategory
     currency: str
     price: float = Field(..., gt=0)
     unit_of_measurement: str
@@ -24,14 +33,14 @@ class ListingCreate(BaseModel):
     location: str = Field(..., min_length=1, max_length=100)
     min_order_quantity: float = Field(..., gt=0)
 
-    @field_validator("crop_name", "category", "location")
+    @field_validator("crop_name", "location")
     @classmethod
     def strip_and_not_empty(cls, v: str) -> str:
         v = v.strip()
         if not v:
             raise ValueError("Cannot be blank or whitespace only")
         return v
-    
+
     @field_validator("harvested_at")
     @classmethod
     def not_future_date(cls, v: datetime) -> datetime:
@@ -41,7 +50,7 @@ class ListingCreate(BaseModel):
         if v > now:
             raise ValueError("Harvest date cannot be in the future")
         return v
-    
+
     @field_validator("min_order_quantity")
     @classmethod
     def min_order_lte_quantity(cls, v: float, info) -> float:
@@ -52,7 +61,7 @@ class ListingCreate(BaseModel):
 
 class ListingUpdate(BaseModel):
     crop_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    category: Optional[str] = Field(None, min_length=1, max_length=50)
+    category: Optional[ListingCategory] = None
     price: Optional[float] = Field(None, gt=0)
     currency: Optional[str] = None
     quantity: Optional[float] = Field(None, gt=0)
@@ -64,7 +73,7 @@ class ListingUpdate(BaseModel):
     location: Optional[str] = Field(None, min_length=1, max_length=100)
     min_order_quantity: Optional[float] = Field(None, gt=0)
 
-    @field_validator("crop_name", "category", "location")
+    @field_validator("crop_name", "location")
     @classmethod
     def strip_and_not_empty(cls, v: str) -> str:
         v = v.strip()

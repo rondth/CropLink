@@ -5,6 +5,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import CountrySelect from '@/components/ui/CountrySelect';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!, {
     developerTools: { assistant: { enabled: false } },
@@ -46,6 +47,7 @@ function CheckoutForm({
     const [isPaying, setIsPaying] = useState(false);
     const [isReady, setIsReady] = useState(false);
     const [cardError, setCardError] = useState<string | null>(null);
+    const [billingCountry, setBillingCountry] = useState<string | null>(null);
     const subtotal = transaction.quantity * (transaction.listing?.price ?? 0);
     const platformFee = Math.round(subtotal * 0.02 * 100) / 100;
     const total = subtotal + platformFee;
@@ -56,12 +58,25 @@ function CheckoutForm({
 
     const handlePay = async () => {
         if (!stripe || !elements) return;
+        if (!billingCountry) {
+            setCardError('Please select your billing country.');
+            return;
+        }
         setCardError(null);
         setIsPaying(true);
 
         const { error } = await stripe.confirmPayment({
             elements,
             redirect: 'if_required',
+            confirmParams: {
+                payment_method_data: {
+                    billing_details: {
+                        address: {
+                            country: billingCountry,
+                        },
+                    },
+                },
+            },
         });
 
         if (error) {
@@ -125,7 +140,23 @@ function CheckoutForm({
                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">
                     Payment Details
                 </p>
-                <PaymentElement onReady={() => setIsReady(true)} />
+                <PaymentElement
+                    onReady={() => setIsReady(true)}
+                    options={{
+                        fields: {
+                            billingDetails: {
+                                address: { country: 'never' },
+                            },
+                        },
+                    }}
+                />
+            </div>
+
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-3">
+                    Billing Country
+                </p>
+                <CountrySelect value={billingCountry} onChange={setBillingCountry} />
             </div>
 
             {cardError && (
@@ -135,7 +166,7 @@ function CheckoutForm({
             {/* Pay button */}
             <button
                 onClick={handlePay}
-                disabled={isPaying || !stripe || !isReady}
+                disabled={isPaying || !stripe || !isReady || !billingCountry}
                 className="w-full bg-CropLink-primary text-white font-black text-sm py-4 rounded-2xl shadow-md shadow-CropLink-primary/25 disabled:opacity-50 active:scale-95 transition-all"
             >
                 {isPaying ? (

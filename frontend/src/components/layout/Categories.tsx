@@ -11,6 +11,7 @@ const categoryIconMap: Record<string, string> = {
     oilfats: '/oilfats.png',
     pulsesnuts: '/pulsesnuts.png',
     vegetablesfruits: '/vegetablesfruits.png',
+    others: '/others.png',
 };
 
 const normalizeCategoryKey = (categoryName: string) =>

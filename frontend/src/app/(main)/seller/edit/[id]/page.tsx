@@ -196,6 +196,7 @@ export default function EditListingPage() {
                                 <option value="Oil & Fats">Oil & Fats</option>
                                 <option value="Pulses & Nuts">Pulses & Nuts</option>
                                 <option value="Vegetables & Fruits">Vegetables & Fruits</option>
+                                <option value="Others">Others</option>
                             </select>
                         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">
                             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
