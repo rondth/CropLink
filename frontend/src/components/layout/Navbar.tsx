@@ -21,7 +21,7 @@ const tabsBuyer = [
 
 const tabsSeller = [
     { id: 'home', label: 'Home', iconName: 'home', href: '/' },
-    { id: 'crops', label: 'Crops', iconName: 'crops', href: '/crops' },
+    { id: 'crops', label: 'List Crops', iconName: 'crops', href: '/crops' },
     { id: 'prices', label: 'Prices', iconName: 'price', href: '/prices' },
     { id: 'orders', label: 'Orders', iconName: 'orders', href: '/orders' },
     { id: 'messages', label: 'Messages', iconName: 'messages', href: '/messages' },
