@@ -34,6 +34,7 @@ interface Transaction {
 
 const STATUS_STYLES: Record<string, string> = {
     completed: 'bg-green-50 text-green-600 border border-green-100',
+    paid:      'bg-blue-50 text-blue-600 border border-blue-100',
     pending:   'bg-orange-50 text-orange-500 border border-orange-100',
     cancelled: 'bg-red-50 text-red-500 border border-red-100',
 };
@@ -52,6 +53,7 @@ export default function OrderDetailPage() {
     const [newQuantity, setNewQuantity] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [showRefundConfirm, setShowRefundConfirm] = useState(false);
     const [counterpartyProfile, setCounterpartyProfile] = useState<{ name?: string; profile_picture_url?: string } | null>(null);
 
     const userId = user?.user_id;
@@ -97,6 +99,33 @@ export default function OrderDetailPage() {
         } catch (err: any) {
             console.log(err?.response);
             setErrorMessage(err?.response?.data?.detail || 'Failed to cancel order.');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleMarkDelivered = async () => {
+        if (!order) return;
+        setUpdating(true);
+        try {
+            await api.post(`/transactions/${order.id}/complete`);
+            setOrder(prev => prev ? { ...prev, status: 'completed' } : prev);
+        } catch (err: any) {
+            setErrorMessage(err?.response?.data?.detail || 'Failed to mark order as delivered.');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const handleRefund = async () => {
+        if (!order) return;
+        setShowRefundConfirm(false);
+        setUpdating(true);
+        try {
+            await api.post(`/transactions/${order.id}/refund`);
+            setOrder(prev => prev ? { ...prev, status: 'cancelled' } : prev);
+        } catch (err: any) {
+            setErrorMessage(err?.response?.data?.detail || 'Failed to refund order.');
         } finally {
             setUpdating(false);
         }
@@ -168,6 +197,7 @@ export default function OrderDetailPage() {
     if (!order) return null;
 
     const isBuyer = order.buyer_id === userId;
+    const isSeller = order.seller_id === userId;
     const counterpartyId = isBuyer ? order.seller_id : order.buyer_id;
     const counterpartyLabel = isBuyer ? 'Farmer / Seller' : 'Distributor / Buyer';
 
@@ -379,8 +409,54 @@ export default function OrderDetailPage() {
                 </div>
             )}
 
+            {/* Mark as delivered / cancel & refund (seller only, paid orders) */}
+            {isSeller && order.status === 'paid' && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 flex flex-col gap-2">
+                    <button
+                        onClick={handleMarkDelivered}
+                        disabled={updating}
+                        className="w-full bg-CropLink-primary text-white font-bold text-sm py-3 rounded-xl shadow-md shadow-CropLink-primary/20 disabled:opacity-50 active:scale-95 transition-transform"
+                    >
+                        {updating ? 'Updating...' : 'Mark as Delivered'}
+                    </button>
+                    <button
+                        onClick={() => setShowRefundConfirm(true)}
+                        disabled={updating}
+                        className="w-full bg-red-50 text-red-500 font-bold text-sm py-3 rounded-xl border border-red-100 disabled:opacity-50 active:scale-95 transition-transform"
+                    >
+                        Cancel & Refund
+                    </button>
+                </div>
+            )}
+
             {order.status === 'completed' && isBuyer && (
                 <ReviewCTA transactionId={order.id} onWrite={() => router.push(`/orders/${order.id}/review-seller`)} />
+            )}
+
+            { /* Cancel & refund confirmation */ }
+            {showRefundConfirm && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+                    <div className="bg-white rounded-2xl p-6 mx-6 shadow-xl max-w-sm w-full">
+                        <h3 className="font-black text-gray-800 text-base mb-2">Cancel & refund this order?</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            This will refund the buyer in full via Stripe and cannot be undone.
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={handleRefund}
+                                className="w-full bg-red-500 text-white font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                            >
+                                Yes, cancel & refund
+                            </button>
+                            <button
+                                onClick={() => setShowRefundConfirm(false)}
+                                className="w-full border border-gray-200 text-gray-600 font-bold text-sm py-3 rounded-xl active:scale-95 transition-transform"
+                            >
+                                Go back
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             { /* Error message */ }

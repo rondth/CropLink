@@ -118,7 +118,7 @@ async def stripe_webhook(request: Request):
         if not txn_id:
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
-        supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+        supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
 
         txn = supabase.table("transaction").select("listing_id, quantity").eq("id", txn_id).execute()
         if txn.data:
@@ -142,6 +142,15 @@ async def stripe_webhook(request: Request):
             return {"status": "ignored"}
         supabase.table("payments").update({"status": "failed"}).eq("transaction_id", txn_id).execute()
         supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
+    elif event["type"] == "charge.refunded":
+        metadata = event["data"]["object"]["metadata"]
+        txn_id = metadata["transaction_id"] if "transaction_id" in metadata else None
+        if not txn_id:
+            return {"status": "ignored"}
+        txn = supabase.table("transaction").select("status").eq("id", txn_id).execute()
+        if txn.data and txn.data[0]["status"] != "cancelled":
+            supabase.table("payments").update({"status": "refunded"}).eq("transaction_id", txn_id).execute()
+            supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
 
     return {"status": "ok"}
 
@@ -230,7 +239,7 @@ async def get_client_secret(txn_id: str, user_id: str = Depends(get_current_user
     intent = stripe.PaymentIntent.retrieve(payment.data[0]["stripe_id"])
     if intent.status == "succeeded":
         supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
-        supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+        supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
         raise HTTPException(status_code=400, detail="already_paid")
     reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
     if intent.status not in reusable:
@@ -277,7 +286,7 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
         intent = stripe.PaymentIntent.retrieve(payment_res.data[0]["stripe_id"])
         if intent.status == "succeeded":
             supabase.table("payments").update({"status": "paid"}).eq("transaction_id", txn_id).execute()
-            supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+            supabase.table("transaction").update({"status": "paid"}).eq("id", txn_id).execute()
             raise HTTPException(status_code=400, detail="already_paid")
         
         reusable = {"requires_payment_method", "requires_confirmation", "requires_action"}
@@ -292,3 +301,49 @@ async def update_transaction(txn_id: str, payload: TransactionUpdate, user_id: s
     supabase.table("transaction").update({"quantity": payload.quantity}).eq("id", txn_id).execute()
     updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()
     return updated.data[0]
+
+@router.post("/transactions/{txn_id}/complete")
+async def complete_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["seller_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the seller can mark this transaction as delivered")
+    if txn.data["status"] != "paid":
+        raise HTTPException(status_code=400, detail=f"Cannot complete a transaction with status '{txn.data['status']}'")
+
+    supabase.table("transaction").update({"status": "completed"}).eq("id", txn_id).execute()
+    updated = supabase.table("transaction").select("*, listing:crops_listings(*)").eq("id", txn_id).execute()
+    return updated.data[0]
+
+@router.post("/transactions/{txn_id}/refund")
+async def refund_transaction(txn_id: str, user_id: str = Depends(get_current_user_id)):
+    txn = supabase.table("transaction").select("*").eq("id", txn_id).single().execute()
+    if not txn.data:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.data["seller_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the seller can refund this transaction")
+    if txn.data["status"] != "paid":
+        raise HTTPException(status_code=400, detail=f"Cannot refund a transaction with status '{txn.data['status']}'")
+
+    payment = supabase.table("payments").select("stripe_id").eq("transaction_id", txn_id).execute()
+    if not payment.data:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    try:
+        stripe.Refund.create(payment_intent=payment.data[0]["stripe_id"])
+    except stripe.error.InvalidRequestError as e:
+        raise HTTPException(status_code=400, detail=f"Refund failed: {str(e.user_message or e)}")
+
+    supabase.table("payments").update({"status": "refunded"}).eq("transaction_id", txn_id).execute()
+    supabase.table("transaction").update({"status": "cancelled"}).eq("id", txn_id).execute()
+
+    try:
+        supabase.rpc("increase_listing_quantity", {
+            "p_listing_id": txn.data["listing_id"],
+            "p_quantity": txn.data["quantity"]
+        }).execute()
+    except Exception as e:
+        print(f"Failed to restore listing quantity for txn {txn_id}: {e}")
+
+    return {"status": "refunded"}

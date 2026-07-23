@@ -225,7 +225,7 @@ export default function CheckoutPage() {
             const txn: Transaction = txnRes.data;
             setTransaction(txn);
 
-            if (txn.status === 'completed') {
+            if (txn.status === 'paid' || txn.status === 'completed') {
                 setPaid(true);
                 setIsLoading(false);
                 return;
