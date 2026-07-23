@@ -158,7 +158,9 @@ export default function PublicProfile() {
             if (profileData.role !== 'seller') return;
 
             return Promise.all([
-                api.get('/listings/'),
+                api.get('/listings/', {
+                    params: user?.preferred_currency ? { target_currency: user.preferred_currency } : undefined,
+                }),
                 api.get(`/reviews/seller/${userId}`),
             ]).then(([listingsRes, reviewsRes]) => {
                 setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
@@ -169,7 +171,7 @@ export default function PublicProfile() {
         }).finally(() => {
             setIsLoading(false);
         });
-    }, [userId]);
+    }, [userId, user?.preferred_currency]);
 
     useEffect(() => {
         const scroller = document.querySelector('.overflow-y-auto');

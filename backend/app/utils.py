@@ -76,10 +76,62 @@ def get_rate_to_usd(supabase, currency: str) -> float | None:
         .order("date", desc=True) \
         .limit(1) \
         .execute()
-    
+
     if result.data and result.data[0]["rate_to_usd"]:
         return float(result.data[0]["rate_to_usd"])
     return None
+
+
+ZERO_DECIMAL_CURRENCIES = {"IDR", "LAK", "MMK", "VND"}
+
+
+def convert_price(
+    supabase, amount: float, from_currency: str, to_currency: str, rates_cache: dict[str, float | None]
+) -> float | None:
+    """Convert `amount` from `from_currency` to `to_currency`, hopping through USD.
+
+    `rates_cache` memoizes each currency's rate_to_usd across calls, so converting
+    a batch of rows with a handful of distinct currencies costs at most one
+    exchange_rate query per distinct currency, not one per row.
+    """
+    from_currency = (from_currency or "USD").upper()
+    to_currency = to_currency.upper()
+
+    if from_currency == to_currency:
+        return amount
+
+    for currency in (from_currency, to_currency):
+        if currency not in rates_cache:
+            rates_cache[currency] = 1.0 if currency == "USD" else get_rate_to_usd(supabase, currency)
+
+    from_rate = rates_cache[from_currency]
+    to_rate = rates_cache[to_currency]
+    if from_rate is None or to_rate is None:
+        return None
+
+    return (amount * from_rate) / to_rate
+
+
+def apply_converted_prices(supabase, listings: list[dict], target_currency: str) -> None:
+    """Enrich each listing dict in place with `converted_price`/`converted_currency`
+    when it can be converted to `target_currency` and differs from the listing's
+    own currency. Listings that can't be converted (e.g. missing exchange rate)
+    are left untouched rather than failing the whole request."""
+    target_currency = target_currency.upper()
+    rates_cache: dict[str, float | None] = {}
+
+    for listing in listings:
+        price = listing.get("price")
+        source_currency = (listing.get("currency") or "USD").upper()
+        if price is None or source_currency == target_currency:
+            continue
+
+        converted = convert_price(supabase, price, source_currency, target_currency, rates_cache)
+        if converted is None:
+            continue
+
+        listing["converted_price"] = round(converted) if target_currency in ZERO_DECIMAL_CURRENCIES else round(converted, 2)
+        listing["converted_currency"] = target_currency
 
 def score_buyer(review_score: float | None, category_match_count: int) -> tuple[float, str]:
     if category_match_count > 0:
