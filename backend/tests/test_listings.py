@@ -184,7 +184,7 @@ class TestGetListingsCurrencyConversion:
         response = client.get("/api/v1/listings/", params={"target_currency": "eur"})
 
         assert response.status_code == 200
-        assert [l["converted_price"] for l in response.json()] == [20.0, 40.0, 60.0]
+        assert [listing["converted_price"] for listing in response.json()] == [20.0, 40.0, 60.0]
         # target currency (EUR) is non-USD and shared by all 3 rows, so the rate
         # lookup should be memoized rather than firing once per listing.
         assert supabase_mock.table("exchange_rate").select.call_count == 1
