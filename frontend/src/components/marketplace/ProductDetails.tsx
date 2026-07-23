@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { api, createConversation } from '@/lib/api';
 import PriceTrendChart from '@/components/ui/PriceTrendChart';
+import PriceDisplay from '@/components/ui/PriceDisplay';
 
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
@@ -176,9 +177,14 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
 
             {/* product details */}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-b-3xl z-10 relative">
-                <div className="text-3xl font-black text-CropLink-primary mb-1">
-                    {product.currency} {product.price ? Intl.NumberFormat('en-US').format(product.price) : '0.'} <span className="text-sm text-gray-500 font-medium">/ {unit}</span>
-                </div>
+                <PriceDisplay
+                    listing={product}
+                    preferredCurrency={user?.preferred_currency}
+                    unit={unit}
+                    primaryClassName="text-3xl font-black text-CropLink-primary mb-1"
+                    unitClassName="text-sm text-gray-500 font-medium"
+                    secondaryClassName="text-xs text-gray-400 font-semibold mb-1"
+                />
                 <h1 className="text-xl font-bold text-gray-800 leading-tight mb-3">{title}</h1>
                 
                 <div className="flex items-center gap-2 text-xs text-gray-500 font-bold bg-gray-50 p-2.5 rounded-xl">

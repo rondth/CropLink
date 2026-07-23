@@ -4,10 +4,11 @@
     import { useRouter } from 'next/navigation';
     import { api } from '@/lib/api';
     import { useAuth } from '@/lib/AuthContext';
-    
+    import PriceDisplay from '@/components/ui/PriceDisplay';
+
     export default function ProductCard({ product, onClick }: { product: any, onClick?: () => void }) {
         const router = useRouter();
-        const { isAuthenticated } = useAuth();
+        const { isAuthenticated, user } = useAuth();
         const [isLoading, setIsLoading] = useState(false);
 
         const handleOrderNow = async (e: React.MouseEvent) => {
@@ -55,12 +56,11 @@
                 📍 {product.location || 'Unknown location'}
             </div>
 
-            <div className="text-sm font-black text-CropLink-primary">
-                {product.currency} {product.price ? Intl.NumberFormat('en-US').format(product.price) : '0'}
-                <span className="text-[11px] text-gray-600 font-medium">
-                    / {product.unit_of_measurement || 'unit'}
-                </span>
-            </div>
+            <PriceDisplay
+                listing={product}
+                preferredCurrency={user?.preferred_currency}
+                unit={product.unit_of_measurement || 'unit'}
+            />
 
             <button 
                 onClick={handleOrderNow}
