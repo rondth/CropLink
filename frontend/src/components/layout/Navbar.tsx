@@ -8,7 +8,7 @@ import { useRole } from '@/components/layout/RoleContext';
 import { useUnreadMessageCount } from '@/lib/UnreadMessageCountContext';
 
 export default function Navbar() {
-const { role } = useRole();
+const { role, isLoading } = useRole();
 const pathname = usePathname();
 const { unreadCount } = useUnreadMessageCount();
 
@@ -29,6 +29,17 @@ const tabsSeller = [
 ];
 
 const tabs = role === 'seller' ? tabsSeller : tabsBuyer;
+
+if (isLoading) {
+    return (
+        <nav className="flex bg-white border-t border-gray-200 shrink-0 select-none pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]" aria-hidden="true">
+            <span className="flex-1 flex flex-col items-center gap-0.5 py-2 pb-2.5 invisible">
+                <span className="text-xl inline-flex"><span className="w-6 h-6" /></span>
+                <span className="text-[10px] font-bold">.</span>
+            </span>
+        </nav>
+    );
+}
 
 return (
     <nav className="flex bg-white border-t border-gray-200 shrink-0 select-none pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
