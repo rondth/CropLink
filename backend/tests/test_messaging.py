@@ -38,9 +38,18 @@ def _mock_listing(supabase_mock, listing_id="listing-1", seller_id="seller-1"):
 
 
 def _mock_existing_conversation(supabase_mock, data):
+    """Lookup is always scoped to (buyer_id, seller_id) only -- there's a single
+    thread per pair regardless of whether it was reached via listing_id or
+    seller_id, so both creation paths share this same query shape."""
     supabase_mock.table(
         "conversations"
-    ).select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(data=data)
+    ).select.return_value.eq.return_value.eq.return_value.execute.return_value = SimpleNamespace(data=data)
+
+
+def _mock_profile_exists(supabase_mock, user_id="seller-1"):
+    supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        data=[{"user_id": user_id}]
+    )
 
 
 def _mock_conversation_lookup(supabase_mock, conversation):
@@ -118,6 +127,186 @@ class TestCreateConversation:
         assert response.status_code == 200
         assert response.json()["id"] == "convo-existing"
         supabase_mock.table("conversations").insert.assert_not_called()
+
+
+class TestCreateConversationWithSeller:
+    """Generic 'message this seller' conversations (started from a seller's
+    profile page) don't set a listing context -- they open/create the same
+    single thread that exists for that (buyer, seller) pair, without
+    attaching or clearing any listing."""
+
+    def test_rejects_both_listing_id_and_seller_id(self, authed_client):
+        response = authed_client.post(
+            "/api/v1/conversations/", json={"listing_id": "listing-1", "seller_id": "seller-1"}
+        )
+
+        assert response.status_code == 422
+
+    def test_rejects_neither_listing_id_nor_seller_id(self, authed_client):
+        response = authed_client.post("/api/v1/conversations/", json={})
+
+        assert response.status_code == 422
+
+    def test_404_when_seller_missing(self, authed_client, supabase_mock):
+        supabase_mock.table("profiles").select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[]
+        )
+
+        response = authed_client.post("/api/v1/conversations/", json={"seller_id": "missing"})
+
+        assert response.status_code == 404
+
+    def test_cannot_message_self(self, authed_as, supabase_mock):
+        client = authed_as(user_id="seller-1")
+        _mock_profile_exists(supabase_mock, "seller-1")
+
+        response = client.post("/api/v1/conversations/", json={"seller_id": "seller-1"})
+
+        assert response.status_code == 400
+
+    def test_creates_conversation_with_no_listing(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_profile_exists(supabase_mock, "seller-1")
+        _mock_no_active_block(supabase_mock)
+        _mock_existing_conversation(supabase_mock, [])
+        supabase_mock.table("conversations").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "convo-generic", "listing_id": None, "buyer_id": "buyer-1", "seller_id": "seller-1"}]
+        )
+
+        response = client.post("/api/v1/conversations/", json={"seller_id": "seller-1"})
+
+        assert response.status_code == 201
+        assert response.json()["listing_id"] is None
+        insert_payload = supabase_mock.table("conversations").insert.call_args.args[0]
+        assert "listing_id" not in insert_payload
+
+    def test_returns_existing_conversation_idempotently(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_profile_exists(supabase_mock, "seller-1")
+        _mock_no_active_block(supabase_mock)
+        _mock_existing_conversation(
+            supabase_mock,
+            [{"id": "convo-existing", "listing_id": None, "buyer_id": "buyer-1", "seller_id": "seller-1"}],
+        )
+
+        response = client.post("/api/v1/conversations/", json={"seller_id": "seller-1"})
+
+        assert response.status_code == 200
+        assert response.json()["id"] == "convo-existing"
+        supabase_mock.table("conversations").insert.assert_not_called()
+
+    def test_does_not_clear_an_existing_listing_context(self, authed_as, supabase_mock):
+        """If the buyer already has a thread with this seller carrying a
+        listing context (set by a previous order-specific message), opening
+        chat via the generic 'Message Seller' button must not wipe it out."""
+        client = authed_as(user_id="buyer-1")
+        _mock_profile_exists(supabase_mock, "seller-1")
+        _mock_no_active_block(supabase_mock)
+        _mock_existing_conversation(
+            supabase_mock,
+            [{"id": "convo-existing", "listing_id": "listing-a", "buyer_id": "buyer-1", "seller_id": "seller-1"}],
+        )
+
+        response = client.post("/api/v1/conversations/", json={"seller_id": "seller-1"})
+
+        assert response.status_code == 200
+        assert response.json()["listing_id"] == "listing-a"
+        supabase_mock.table("conversations").update.assert_not_called()
+
+    def test_lookup_is_scoped_to_buyer_and_seller_only(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_profile_exists(supabase_mock, "seller-1")
+        _mock_no_active_block(supabase_mock)
+        _mock_existing_conversation(supabase_mock, [])
+        supabase_mock.table("conversations").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "convo-generic", "listing_id": None, "buyer_id": "buyer-1", "seller_id": "seller-1"}]
+        )
+
+        client.post("/api/v1/conversations/", json={"seller_id": "seller-1"})
+
+        select_mock = supabase_mock.table("conversations").select.return_value
+        select_mock.eq.assert_called_once_with("buyer_id", "buyer-1")
+        select_mock.eq.return_value.eq.assert_called_once_with("seller_id", "seller-1")
+
+
+class TestConversationSharedPerSellerWithListingContext:
+    """Regression test for a bug where messaging a seller about a purchased
+    listing surfaced a different listing's conversation instead. Root cause
+    was a frontend call site that always passed the seller's first listing
+    rather than the one actually being messaged about.
+
+    The fix keeps a single conversation thread per (buyer, seller) pair --
+    opening chat from a specific listing/order updates that thread's listing
+    context to the one just opened, so the thread always reflects the most
+    recent order/listing the buyer actually came from, instead of whatever
+    listing happened to be used when the thread was first created."""
+
+    def test_listing_lookup_is_scoped_to_buyer_and_seller_only(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_listing(supabase_mock, listing_id="listing-a", seller_id="seller-1")
+        _mock_no_active_block(supabase_mock)
+        _mock_existing_conversation(supabase_mock, [])
+        supabase_mock.table("conversations").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "convo-1", "listing_id": "listing-a", "buyer_id": "buyer-1", "seller_id": "seller-1"}]
+        )
+
+        client.post("/api/v1/conversations/", json={"listing_id": "listing-a"})
+
+        select_mock = supabase_mock.table("conversations").select.return_value
+        select_mock.eq.assert_called_once_with("buyer_id", "buyer-1")
+        select_mock.eq.return_value.eq.assert_called_once_with("seller_id", "seller-1")
+
+    def test_messaging_about_a_second_listing_updates_the_same_threads_context(self, authed_as, supabase_mock):
+        """Buyer bought listing A (Spinach), then later buys listing B
+        (Noodles) from the same seller and opens chat about that order too.
+        There must be exactly one conversation row throughout -- its
+        listing_id ends up as B (the most recently opened order), and no
+        second thread is ever created."""
+        client = authed_as(user_id="buyer-1")
+        _mock_no_active_block(supabase_mock)
+
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.execute.side_effect = [
+            SimpleNamespace(data=[{"id": "listing-a", "seller_id": "seller-1", "crop_name": "Spinach", "photo_url": None}]),
+            SimpleNamespace(data=[{"id": "listing-b", "seller_id": "seller-1", "crop_name": "Noodles", "photo_url": None}]),
+        ]
+        conv_select = supabase_mock.table("conversations").select.return_value
+        conv_select.eq.return_value.eq.return_value.execute.side_effect = [
+            SimpleNamespace(data=[]),  # first message: no thread yet
+            SimpleNamespace(data=[{"id": "convo-1", "listing_id": "listing-a", "buyer_id": "buyer-1", "seller_id": "seller-1"}]),
+        ]
+        supabase_mock.table("conversations").insert.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "convo-1", "listing_id": "listing-a", "buyer_id": "buyer-1", "seller_id": "seller-1"}]
+        )
+        supabase_mock.table("conversations").update.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "convo-1", "listing_id": "listing-b", "buyer_id": "buyer-1", "seller_id": "seller-1"}]
+        )
+
+        resp_a = client.post("/api/v1/conversations/", json={"listing_id": "listing-a"})
+        resp_b = client.post("/api/v1/conversations/", json={"listing_id": "listing-b"})
+
+        assert resp_a.json()["id"] == "convo-1"
+        assert resp_a.json()["listing_id"] == "listing-a"
+        assert resp_b.json()["id"] == "convo-1"
+        assert resp_b.json()["listing_id"] == "listing-b"
+
+        supabase_mock.table("conversations").insert.assert_called_once()
+        supabase_mock.table("conversations").update.assert_called_once_with({"listing_id": "listing-b"})
+        supabase_mock.table("conversations").update.return_value.eq.assert_called_once_with("id", "convo-1")
+
+    def test_reopening_with_the_same_listing_does_not_issue_an_update(self, authed_as, supabase_mock):
+        client = authed_as(user_id="buyer-1")
+        _mock_listing(supabase_mock, listing_id="listing-a", seller_id="seller-1")
+        _mock_no_active_block(supabase_mock)
+        _mock_existing_conversation(
+            supabase_mock,
+            [{"id": "convo-1", "listing_id": "listing-a", "buyer_id": "buyer-1", "seller_id": "seller-1"}],
+        )
+
+        response = client.post("/api/v1/conversations/", json={"listing_id": "listing-a"})
+
+        assert response.status_code == 200
+        assert response.json()["listing_id"] == "listing-a"
+        supabase_mock.table("conversations").update.assert_not_called()
 
 
 class TestListConversations:

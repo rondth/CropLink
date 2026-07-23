@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from postgrest.exceptions import APIError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.dependencies import get_current_user_id
 from app.core.supabase import supabase
@@ -34,7 +34,14 @@ PREVIEW_LENGTH = 80
 # SCHEMAS
 
 class ConversationCreate(BaseModel):
-    listing_id: str
+    listing_id: Optional[str] = None
+    seller_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def exactly_one_target(self) -> "ConversationCreate":
+        if bool(self.listing_id) == bool(self.seller_id):
+            raise ValueError("Provide exactly one of listing_id or seller_id")
+        return self
 
 
 class MessageCreate(BaseModel):
@@ -64,6 +71,13 @@ def _get_listing_or_404(listing_id: str) -> dict:
     return response.data[0]
 
 
+def _get_profile_or_404(user_id: str) -> dict:
+    response = supabase.table("profiles").select("user_id").eq("user_id", user_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Seller not found")
+    return response.data[0]
+
+
 def _get_conversation_or_404(conversation_id: str) -> dict:
     response = supabase.table("conversations").select("*").eq("id", conversation_id).execute()
     if not response.data:
@@ -76,12 +90,28 @@ def _ensure_participant(conversation: dict, user_id: str) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this conversation")
 
 
-def get_or_create_conversation(listing_id: str, buyer_id: str) -> tuple[dict, bool]:
-    listing = _get_listing_or_404(listing_id)
-    seller_id = listing["seller_id"]
+def get_or_create_conversation(
+    buyer_id: str, listing_id: Optional[str] = None, seller_id: Optional[str] = None
+) -> tuple[dict, bool]:
+    """One conversation thread per (buyer, seller) pair, regardless of which
+    listing/order it was opened from. Two ways to reach it:
+    - listing_id: opened from a specific listing/order (product page, order
+      detail page). If a thread with this seller already exists, its
+      listing_id is updated to this one so the thread's context card always
+      reflects the most recent listing/order the buyer opened chat from.
+    - seller_id: a general inquiry with no listing attached (seller's profile
+      page). This never sets or clears the thread's listing context -- it
+      just opens whatever thread (with whatever context) already exists, or
+      starts a contextless one if there isn't one yet.
+    """
+    if listing_id:
+        listing = _get_listing_or_404(listing_id)
+        seller_id = listing["seller_id"]
+    else:
+        _get_profile_or_404(seller_id)
 
     if seller_id == buyer_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot message yourself about your own listing")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot message yourself")
 
     if is_blocked_between(supabase, buyer_id, seller_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unable to start a conversation with this user")
@@ -89,19 +119,26 @@ def get_or_create_conversation(listing_id: str, buyer_id: str) -> tuple[dict, bo
     existing = (
         supabase.table("conversations")
         .select("*")
-        .eq("listing_id", listing_id)
         .eq("buyer_id", buyer_id)
         .eq("seller_id", seller_id)
         .execute()
     )
     if existing.data:
-        return existing.data[0], False
+        conversation = existing.data[0]
+        if listing_id and conversation.get("listing_id") != listing_id:
+            updated = (
+                supabase.table("conversations")
+                .update({"listing_id": listing_id})
+                .eq("id", conversation["id"])
+                .execute()
+            )
+            conversation = updated.data[0]
+        return conversation, False
 
-    created = supabase.table("conversations").insert({
-        "listing_id": listing_id,
-        "buyer_id": buyer_id,
-        "seller_id": seller_id,
-    }).execute()
+    payload = {"buyer_id": buyer_id, "seller_id": seller_id}
+    if listing_id:
+        payload["listing_id"] = listing_id
+    created = supabase.table("conversations").insert(payload).execute()
     return created.data[0], True
 
 
@@ -306,7 +343,7 @@ def create_conversation(
     response: Response,
     buyer_id: str = Depends(get_current_user_id),
 ):
-    conversation, created = get_or_create_conversation(data.listing_id, buyer_id)
+    conversation, created = get_or_create_conversation(buyer_id, data.listing_id, data.seller_id)
     response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     return conversation
 

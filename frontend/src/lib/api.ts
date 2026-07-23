@@ -142,7 +142,7 @@ export interface Conversation {
 
 export interface ConversationRecord {
     id: string;
-    listing_id: string;
+    listing_id: string | null;
     buyer_id: string;
     seller_id: string;
     last_message_at: string | null;
@@ -169,8 +169,13 @@ export const getConversations = async (): Promise<Conversation[]> => {
     return response.data;
 }
 
-export const createConversation = async (listing_id: string): Promise<ConversationRecord> => {
-    const response = await api.post<ConversationRecord>('/conversations/', { listing_id });
+export const createConversation = async (
+    target: { listingId: string } | { sellerId: string }
+): Promise<ConversationRecord> => {
+    const payload = 'listingId' in target
+        ? { listing_id: target.listingId }
+        : { seller_id: target.sellerId };
+    const response = await api.post<ConversationRecord>('/conversations/', payload);
     return response.data;
 }
 

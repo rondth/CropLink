@@ -55,11 +55,10 @@ export default function PublicProfile() {
             router.push('/login');
             return;
         }
-        if (!listings.length) return;
 
         setIsMessaging(true);
         try {
-            const conversation = await createConversation(listings[0].id);
+            const conversation = await createConversation({ sellerId: userId });
             router.push(`/messages/${conversation.id}`);
         } catch (err: any) {
             setToast({ type: 'error', message: err?.response?.data?.detail || 'Failed to start conversation. Please try again.' });
