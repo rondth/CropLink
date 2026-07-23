@@ -21,6 +21,8 @@ export default function CropsListing() {
     const [category, setCategory] = useState('');
     const [currency, setCurrency] = useState('USD');
     const [harvestDate, setHarvestDate] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [minOrderQuantity, setMinOrderQuantity] = useState('');
     const [recommendation, setRecommendation] = useState<{
         verdict: 'sell_now' | 'wait';
         reason: string;
@@ -63,6 +65,8 @@ export default function CropsListing() {
         return null;
     }
 
+    const minOrderExceedsQuantity = quantity !== '' && minOrderQuantity !== '' && parseFloat(minOrderQuantity) > parseFloat(quantity);
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -100,6 +104,11 @@ export default function CropsListing() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        if (minOrderExceedsQuantity) {
+            return;
+        }
+
         setIsLoading(true);
         setError('');
 
@@ -208,7 +217,7 @@ export default function CropsListing() {
                     {/* price */}
                     <div className="flex-1">
                         <label htmlFor="price" className="block text-xs font-bold text-gray-700 mb-1.5">Price *</label>
-                        <input required type="number" id="price" name="price" min="0" step="0.01" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="0.00" />
+                        <input required type="number" id="price" name="price" min="0" step="0.01" autoComplete="off" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="0.00" />
                     </div>
                     {/* currency */}
                     <div className="w-[100px]">
@@ -230,7 +239,7 @@ export default function CropsListing() {
                     {/* quantity */}
                     <div className="flex-1">
                         <label htmlFor="quantity" className="block text-xs font-bold text-gray-700 mb-1.5">Quantity *</label>
-                        <input required type="number" id="quantity" name="quantity" min="0" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="Available qty" />
+                        <input required type="number" id="quantity" name="quantity" min="0" autoComplete="off" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="Available qty" />
                     </div>
                     {/* unit_of_measurement */}
                     <div className="w-[100px]">
@@ -247,7 +256,10 @@ export default function CropsListing() {
                 <div>
                     {/* min_order_quantity */}
                     <label htmlFor="min_order_quantity" className="block text-xs font-bold text-gray-700 mb-1.5">Min. Order Qty *</label>
-                    <input required type="number" id="min_order_quantity" name="min_order_quantity" min="1" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., 5" />
+                    <input required type="number" id="min_order_quantity" name="min_order_quantity" min="1" autoComplete="off" value={minOrderQuantity} onChange={e => setMinOrderQuantity(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., 5" />
+                    {minOrderExceedsQuantity && (
+                        <p className="text-xs text-red-500 font-bold mt-1">Min. order quantity can&apos;t be greater than availability.</p>
+                    )}
                 </div>
 
 
@@ -312,7 +324,7 @@ export default function CropsListing() {
 
                 {/* submit Button */}
                 <div className="pt-2 mt-2 border-t border-gray-100">
-                    <button type="submit" disabled={isLoading} className="w-full bg-CropLink-primary text-white font-black text-sm py-3.5 px-4 rounded-xl hover:bg-CropLink-dark active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100">
+                    <button type="submit" disabled={isLoading || minOrderExceedsQuantity} className="w-full bg-CropLink-primary text-white font-black text-sm py-3.5 px-4 rounded-xl hover:bg-CropLink-dark active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100">
                         {isLoading ? 'Publishing...' : 'Publish Listing'}
                     </button>
                 </div>
