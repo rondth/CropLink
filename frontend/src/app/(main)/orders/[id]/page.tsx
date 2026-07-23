@@ -1,9 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, createConversation } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
-import { User } from 'lucide-react';
+import { User, MessageCircle } from 'lucide-react';
 
 interface Transaction {
     id: string;
@@ -55,6 +55,7 @@ export default function OrderDetailPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [showRefundConfirm, setShowRefundConfirm] = useState(false);
     const [counterpartyProfile, setCounterpartyProfile] = useState<{ name?: string; profile_picture_url?: string } | null>(null);
+    const [isMessaging, setIsMessaging] = useState(false);
 
     const userId = user?.user_id;
 
@@ -153,6 +154,19 @@ export default function OrderDetailPage() {
     const handlePay = () => {
         if (!order) return;
         router.push(`/checkout/${order.id}`);
+    };
+
+    const handleMessageSeller = async () => {
+        if (!order?.listing?.id) return;
+        setIsMessaging(true);
+        try {
+            const conversation = await createConversation({ listingId: order.listing.id });
+            router.push(`/messages/${conversation.id}`);
+        } catch (err: any) {
+            setErrorMessage(err?.response?.data?.detail || 'Failed to start conversation. Please try again.');
+        } finally {
+            setIsMessaging(false);
+        }
     };
 
     if (authLoading || isLoading) {
@@ -339,6 +353,28 @@ export default function OrderDetailPage() {
                         <p className="text-sm font-bold text-gray-800">{counterpartyProfile?.name ?? 'View profile'}</p>
                     </div>
                     <span className="text-[10px] font-black text-CropLink-primary">View →</span>
+                </button>
+            )}
+
+            {/* Message seller about this order (buyer only) */}
+            {isBuyer && order.listing?.id && (
+                <button
+                    onClick={handleMessageSeller}
+                    disabled={isMessaging}
+                    className="w-full bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-3 flex items-center gap-3 text-left active:scale-[0.98] transition-transform disabled:opacity-50"
+                >
+                    <div className="size-11 rounded-full bg-CropLink-primary/10 flex items-center justify-center flex-shrink-0">
+                        <MessageCircle className="w-5 h-5 text-CropLink-primary" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-0.5">
+                            Have a question?
+                        </p>
+                        <p className="text-sm font-bold text-gray-800">
+                            {isMessaging ? 'Starting conversation...' : 'Message Seller about this order'}
+                        </p>
+                    </div>
+                    <span className="text-[10px] font-black text-CropLink-primary">Chat →</span>
                 </button>
             )}
 

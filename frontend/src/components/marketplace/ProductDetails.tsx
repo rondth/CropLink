@@ -148,7 +148,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
         setIsMessaging(true);
         setMessageError(null);
         try {
-            const conversation = await createConversation(product.id);
+            const conversation = await createConversation({ listingId: product.id });
             router.push(`/messages/${conversation.id}`);
         } catch (err: any) {
             setMessageError(err?.response?.data?.detail || 'Failed to start conversation. Please try again.');
