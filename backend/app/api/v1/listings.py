@@ -4,7 +4,7 @@ from typing import Optional, Literal
 from datetime import date, datetime, timezone
 from app.core.dependencies import get_current_user, get_current_user_id, get_optional_user_id
 from app.core.supabase import supabase
-from app.utils import get_blocked_user_ids
+from app.utils import get_blocked_user_ids, apply_converted_prices
 from ml.seasonal import make_recommendation
 
 router = APIRouter(prefix="/listings", tags=["listings"])
@@ -128,7 +128,7 @@ def create_listing(
 
 # GET /listings
 @router.get("/")
-def get_listings(user_id: Optional[str] = Depends(get_optional_user_id)):
+def get_listings(user_id: Optional[str] = Depends(get_optional_user_id), target_currency: Optional[str] = None):
     response = supabase.table("crops_listings").select("*").eq("status", "active").gt("quantity", 0).execute()
     listings = response.data
 
@@ -143,6 +143,9 @@ def get_listings(user_id: Optional[str] = Depends(get_optional_user_id)):
         seller_map = {p["user_id"]: p["name"] for p in profiles.data}
         for listing in listings:
             listing["seller_name"] = seller_map.get(listing.get("seller_id"))
+
+    if target_currency:
+        apply_converted_prices(supabase, listings, target_currency)
 
     return listings
 
@@ -422,7 +425,7 @@ def get_listing_recommendation(listing_id: str):
 # get single listing
 @router.get("/{listing_id}")
 
-def get_listing(listing_id: str):
+def get_listing(listing_id: str, target_currency: Optional[str] = None):
     response = supabase.table("crops_listings").select("*").or_(f"id.eq.{listing_id},produce_id.eq.{listing_id}").limit(1).execute()
 
     if not response.data:
@@ -434,6 +437,9 @@ def get_listing(listing_id: str):
     if seller_id:
         profile = supabase.table("profiles").select("name").eq("user_id", seller_id).limit(1).execute()
         listing["seller_name"] = profile.data[0].get("name") if profile.data else None
+
+    if target_currency:
+        apply_converted_prices(supabase, [listing], target_currency)
 
     return listing
     

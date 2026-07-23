@@ -122,6 +122,90 @@ class TestGetListings:
         assert ids == ["1"]
 
 
+class TestGetListingsCurrencyConversion:
+    def _mock_rate(self, supabase_mock, rate_to_usd):
+        supabase_mock.table(
+            "exchange_rate"
+        ).select.return_value.eq.return_value.not_.is_.return_value.lte.return_value.order.return_value.limit.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"rate_to_usd": rate_to_usd}])
+        )
+
+    def test_no_target_currency_leaves_listings_unconverted(self, client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "1", "seller_id": "user-1", "price": 10, "currency": "USD"}])
+        )
+
+        response = client.get("/api/v1/listings/")
+
+        assert response.status_code == 200
+        body = response.json()[0]
+        assert "converted_price" not in body
+        assert "converted_currency" not in body
+
+    def test_same_currency_as_target_is_not_duplicated(self, client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "1", "seller_id": "user-1", "price": 10, "currency": "USD"}])
+        )
+
+        response = client.get("/api/v1/listings/", params={"target_currency": "usd"})
+
+        assert response.status_code == 200
+        body = response.json()[0]
+        assert "converted_price" not in body
+        assert "converted_currency" not in body
+
+    def test_converts_listing_price_to_target_currency(self, client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "1", "seller_id": "user-1", "price": 100.0, "currency": "USD"}])
+        )
+        self._mock_rate(supabase_mock, 0.5)  # 1 EUR = 0.5 USD
+
+        response = client.get("/api/v1/listings/", params={"target_currency": "eur"})
+
+        assert response.status_code == 200
+        body = response.json()[0]
+        assert body["price"] == 100.0
+        assert body["currency"] == "USD"
+        assert body["converted_price"] == 200.0
+        assert body["converted_currency"] == "EUR"
+
+    def test_batch_conversion_only_queries_once_per_distinct_currency(self, client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(
+                data=[
+                    {"id": "1", "seller_id": "user-1", "price": 10.0, "currency": "USD"},
+                    {"id": "2", "seller_id": "user-1", "price": 20.0, "currency": "USD"},
+                    {"id": "3", "seller_id": "user-1", "price": 30.0, "currency": "USD"},
+                ]
+            )
+        )
+        self._mock_rate(supabase_mock, 0.5)
+
+        response = client.get("/api/v1/listings/", params={"target_currency": "eur"})
+
+        assert response.status_code == 200
+        assert [l["converted_price"] for l in response.json()] == [20.0, 40.0, 60.0]
+        # target currency (EUR) is non-USD and shared by all 3 rows, so the rate
+        # lookup should be memoized rather than firing once per listing.
+        assert supabase_mock.table("exchange_rate").select.call_count == 1
+
+    def test_missing_exchange_rate_skips_conversion_without_failing_request(self, client, supabase_mock):
+        supabase_mock.table("crops_listings").select.return_value.eq.return_value.gt.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"id": "1", "seller_id": "user-1", "price": 10.0, "currency": "USD"}])
+        )
+        supabase_mock.table(
+            "exchange_rate"
+        ).select.return_value.eq.return_value.not_.is_.return_value.lte.return_value.order.return_value.limit.return_value.execute.return_value = (
+            SimpleNamespace(data=[])
+        )
+
+        response = client.get("/api/v1/listings/", params={"target_currency": "eur"})
+
+        assert response.status_code == 200
+        body = response.json()[0]
+        assert "converted_price" not in body
+
+
 class TestListingsExclusion:
     """Exercises the real get_blocked_user_ids wiring (no monkeypatching) to verify
     the block relationship is filtered symmetrically regardless of who blocked whom."""
@@ -482,3 +566,42 @@ class TestGetListing:
         response = client.get("/api/v1/listings/missing-id")
 
         assert response.status_code == 404
+
+    def test_converts_price_when_target_currency_given(self, client, supabase_mock):
+        supabase_mock.table(
+            "crops_listings"
+        ).select.return_value.or_.return_value.limit.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "listing-1", "seller_id": "user-1", "price": 100.0, "currency": "USD"}]
+        )
+        supabase_mock.table(
+            "profiles"
+        ).select.return_value.eq.return_value.limit.return_value.execute.return_value = SimpleNamespace(data=[])
+        supabase_mock.table(
+            "exchange_rate"
+        ).select.return_value.eq.return_value.not_.is_.return_value.lte.return_value.order.return_value.limit.return_value.execute.return_value = (
+            SimpleNamespace(data=[{"rate_to_usd": 0.5}])
+        )
+
+        response = client.get("/api/v1/listings/listing-1", params={"target_currency": "eur"})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["price"] == 100.0
+        assert body["converted_price"] == 200.0
+        assert body["converted_currency"] == "EUR"
+
+    def test_no_conversion_fields_without_target_currency(self, client, supabase_mock):
+        supabase_mock.table(
+            "crops_listings"
+        ).select.return_value.or_.return_value.limit.return_value.execute.return_value = SimpleNamespace(
+            data=[{"id": "listing-1", "seller_id": "user-1", "price": 100.0, "currency": "USD"}]
+        )
+        supabase_mock.table(
+            "profiles"
+        ).select.return_value.eq.return_value.limit.return_value.execute.return_value = SimpleNamespace(data=[])
+
+        response = client.get("/api/v1/listings/listing-1")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert "converted_price" not in body
