@@ -474,17 +474,13 @@ export default function Dashboard() {
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="text-xs font-bold text-gray-800">{d.name || 'Unnamed buyer'}</h4>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">
-                                        Reason: {d.basis === 'review_score_and_history'
-                                            ? `${d.category_match_count} past order${d.category_match_count === 1 ? '' : 's'} in this category`
-                                            : 'Based on review score only'}
-                                    </p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">{d.trust_score_basis}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs font-black text-amber-500">
-                                        {d.review_score !== null ? `★ ${d.review_score}` : '★ —'}
+                                        ★ {d.trust_score}
                                     </p>
-                                    <p className="text-[9px] text-gray-400">{d.review_count} review{d.review_count === 1 ? '' : 's'}</p>
+                                    <p className="text-[9px] text-gray-400">Trust Score</p>
                                 </div>
                             </div>
                         ))

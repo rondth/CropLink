@@ -308,7 +308,7 @@ export default function OrderDetailPage() {
                     />
                     <Row
                         label="Price / unit"
-                        value={`${order.currency} ${order.listing?.price?.toLocaleString('en-US', { minimumFractionDigits: 2 }) ?? '—'}`}
+                        value={`${order.currency} ${order.listing?.price?.toLocaleString('en-US', { minimumFractionDigits: 2 }) ?? '-'}`}
                     />
 
                 </div>

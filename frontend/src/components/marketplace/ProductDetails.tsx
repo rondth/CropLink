@@ -297,7 +297,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                             <p className="text-sm font-black text-gray-800">{sellerProfile.name}</p>
                             <p className="text-[11px] text-gray-500 mt-0.5">
                                 <span className="text-amber-500 font-bold">
-                                    ★ {avgRating ?? '—'}
+                                    ★ {avgRating ?? '-'}
                                 </span>
                                 <span className="text-gray-300 mx-1">•</span>
                                 <span className="font-medium">

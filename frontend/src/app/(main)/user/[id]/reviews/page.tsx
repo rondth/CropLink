@@ -12,8 +12,13 @@ export default function Reviews() {
 
     useEffect(() => {
         if (!id) return;
-        api.get(`/reviews/seller/${id}`)
-            .then(res => setReviews(res.data))
+        api.get(`/auth/profile/${id}`)
+            .then(profileRes => {
+                const endpoint = profileRes.data.role === 'buyer'
+                    ? `/reviews/buyer/${id}`
+                    : `/reviews/seller/${id}`;
+                return api.get(endpoint).then(res => setReviews(res.data));
+            })
             .catch(() => {})
             .finally(() => setIsLoading(false));
     }, [id]);

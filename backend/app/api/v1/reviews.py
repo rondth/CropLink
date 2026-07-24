@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from app.core.dependencies import get_current_user_id
 from app.core.supabase import supabase
+from app.utils import recompute_trust_score
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
@@ -36,6 +37,7 @@ def create_seller_review(data: ReviewCreate, reviewer_id: str = Depends(get_curr
         "content": data.content,
     }).execute()
 
+    recompute_trust_score(supabase, txn_data["seller_id"])
     return review.data[0]
 
 
@@ -63,6 +65,7 @@ def create_buyer_review(data: ReviewCreate, reviewer_id: str = Depends(get_curre
         "content": data.content,
     }).execute()
 
+    recompute_trust_score(supabase, txn_data["buyer_id"])
     return review.data[0]
 
 

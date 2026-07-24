@@ -154,17 +154,23 @@ export default function PublicProfile() {
             const profileData = profileRes.data;
             setProfile(profileData);
 
-            if (profileData.role !== 'seller') return;
-
-            return Promise.all([
-                api.get('/listings/', {
+            if (profileData.role === 'seller') {
+                return Promise.all([
+                    api.get('/listings/', {
                     params: user?.preferred_currency ? { target_currency: user.preferred_currency } : undefined,
                 }),
-                api.get(`/reviews/seller/${userId}`),
-            ]).then(([listingsRes, reviewsRes]) => {
-                setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
-                setReviews(reviewsRes.data);
-            });
+                    api.get(`/reviews/seller/${userId}`),
+                ]).then(([listingsRes, reviewsRes]) => {
+                    setListings(listingsRes.data.filter((l: any) => l.seller_id === userId && l.status === 'active'));
+                    setReviews(reviewsRes.data);
+                });
+            }
+
+            if (profileData.role === 'buyer') {
+                return api.get(`/reviews/buyer/${userId}`).then(reviewsRes => {
+                    setReviews(reviewsRes.data);
+                });
+            }
         }).catch(err => {
             console.error("Failed to load profile:", err);
         }).finally(() => {
@@ -282,22 +288,31 @@ export default function PublicProfile() {
             </div>
 
             {/* stats */}
-            {profile.role === 'seller' && (
+            {(profile.role === 'seller' || profile.role === 'buyer') && (
                 <div className="mx-5 mt-5 bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-4 flex items-center justify-around">
+                    {profile.role === 'seller' && (
+                        <>
+                            <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
+                                <span className="text-xl font-black text-gray-800">{profile.num_listings ?? 0}</span>
+                            </div>
+                            <div className="w-px h-8 bg-gray-100" />
+                        </>
+                    )}
                     <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
-                        <span className="text-xl font-black text-gray-800">{profile.num_listings ?? 0}</span>
-                    </div>
-                    <div className="w-px h-8 bg-gray-100" />
-                    <div className="flex flex-col items-center gap-0.5">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                        <span className="text-xl font-black text-gray-800">{reviews.length}</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Review Ratings</span>
+                        <span className="text-xl font-black text-amber-500">
+                            {avgRating ? `★ ${avgRating}` : '★ -'}
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-medium">
+                            {`${reviews.length} review${reviews.length === 1 ? '' : 's'}`}
+                        </span>
                     </div>
                     <div className="w-px h-8 bg-gray-100" />
                     <div className="flex flex-col items-center gap-0.5">
                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
                         <span className="text-xl font-black text-amber-500">
-                            {avgRating ? `★ ${avgRating}` : '★ —'}
+                            {profile.trust_score != null ? `★ ${Number(profile.trust_score).toFixed(2)}` : '★ -'}
                         </span>
                     </div>
                 </div>
@@ -325,7 +340,7 @@ export default function PublicProfile() {
             )}
 
             {/* reviews */}
-            {profile.role === 'seller' && (
+            {(profile.role === 'seller' || profile.role === 'buyer') && (
                 <div className="mt-5 mx-5">
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-sm font-black text-gray-800">Reviews</h2>

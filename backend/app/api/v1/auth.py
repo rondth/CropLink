@@ -167,7 +167,7 @@ def logout(user_id: str = Depends(get_current_user_id)):
 def get_public_profile(user_id: str):
     profile = (
         supabase.table("profiles")
-        .select("user_id, name, email, profile_picture_url, bio, role")
+        .select("user_id, name, email, profile_picture_url, bio, role, trust_score, trust_score_basis")
         .eq("user_id", user_id)
         .single()
         .execute()

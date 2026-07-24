@@ -236,11 +236,8 @@ export interface RecommendedDistributor {
     buyer_id: string;
     name: string | null;
     profile_picture_url: string | null;
-    review_score: number | null;
-    review_count: number;
-    category_match_count: number;
-    score: number;
-    basis: 'review_score_and_history' | 'review_score_only';
+    trust_score: number;
+    trust_score_basis: string;
 }
 
 export const getRecommendedDistributors = async (
