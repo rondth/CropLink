@@ -196,7 +196,7 @@ def describe_trust_score(
 
     if not reasons:
         return "New user (no trust history yet)"
-    return "; ".join(reasons).capitalize()
+    return ", ".join(reasons).capitalize()
 
 
 def recompute_trust_score(supabase, user_id: str) -> float:
