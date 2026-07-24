@@ -7,16 +7,17 @@ type Role = 'buyer' | 'seller';
 
 interface RoleContextType {
     role: Role;
+    isLoading: boolean;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     const role: Role = user?.role === 'seller' ? 'seller' : 'buyer';
 
     return (
-        <RoleContext.Provider value={{ role }}>
+        <RoleContext.Provider value={{ role, isLoading }}>
             {children}
         </RoleContext.Provider>
     );
