@@ -33,6 +33,36 @@ export default function CropsListing() {
         });
         console.trace(`[DEBUG:${field}] change stack`);
     };
+
+    const debugKeyDown = (field: string, e: React.KeyboardEvent<HTMLInputElement>) => {
+        console.log(`[DEBUG:${field}] keydown`, {
+            key: e.key,
+            code: e.code,
+            repeat: e.repeat,
+            isTrusted: e.nativeEvent.isTrusted,
+            time: new Date().toISOString(),
+        });
+    };
+
+    const debugMouseDown = (field: string, e: React.MouseEvent<HTMLInputElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        console.log(`[DEBUG:${field}] mousedown`, {
+            button: e.button,
+            offsetXFromRight: rect.right - e.clientX,
+            offsetYFromTop: e.clientY - rect.top,
+            fieldHeight: rect.height,
+            isTrusted: e.nativeEvent.isTrusted,
+            time: new Date().toISOString(),
+        });
+    };
+
+    const debugWheel = (field: string, e: React.WheelEvent<HTMLInputElement>) => {
+        console.log(`[DEBUG:${field}] wheel`, {
+            deltaY: e.deltaY,
+            isTrusted: e.nativeEvent.isTrusted,
+            time: new Date().toISOString(),
+        });
+    };
     const [recommendation, setRecommendation] = useState<{
         verdict: 'sell_now' | 'wait';
         reason: string;
@@ -227,7 +257,7 @@ export default function CropsListing() {
                     {/* price */}
                     <div className="flex-1">
                         <label htmlFor="price" className="block text-xs font-bold text-gray-700 mb-1.5">Price *</label>
-                        <input required type="number" id="price" name="price" min="0" step="0.01" autoComplete="off" value={price} onChange={e => { debugFieldChange('price', e); setPrice(e.target.value); }} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="0.00" />
+                        <input required type="number" id="price" name="price" min="0" step="0.01" autoComplete="off" value={price} onChange={e => { debugFieldChange('price', e); setPrice(e.target.value); }} onKeyDown={e => debugKeyDown('price', e)} onMouseDown={e => debugMouseDown('price', e)} onWheel={e => debugWheel('price', e)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="0.00" />
                     </div>
                     {/* currency */}
                     <div className="w-[100px]">
@@ -249,7 +279,7 @@ export default function CropsListing() {
                     {/* quantity */}
                     <div className="flex-1">
                         <label htmlFor="quantity" className="block text-xs font-bold text-gray-700 mb-1.5">Quantity *</label>
-                        <input required type="number" id="quantity" name="quantity" min="0" autoComplete="off" value={quantity} onChange={e => { debugFieldChange('quantity', e); setQuantity(e.target.value); }} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="Available qty" />
+                        <input required type="number" id="quantity" name="quantity" min="0" autoComplete="off" value={quantity} onChange={e => { debugFieldChange('quantity', e); setQuantity(e.target.value); }} onKeyDown={e => debugKeyDown('quantity', e)} onMouseDown={e => debugMouseDown('quantity', e)} onWheel={e => debugWheel('quantity', e)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="Available qty" />
                     </div>
                     {/* unit_of_measurement */}
                     <div className="w-[100px]">
@@ -266,7 +296,7 @@ export default function CropsListing() {
                 <div>
                     {/* min_order_quantity */}
                     <label htmlFor="min_order_quantity" className="block text-xs font-bold text-gray-700 mb-1.5">Min. Order Qty *</label>
-                    <input required type="number" id="min_order_quantity" name="min_order_quantity" min="1" autoComplete="off" value={minOrderQuantity} onChange={e => { debugFieldChange('min_order_quantity', e); setMinOrderQuantity(e.target.value); }} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., 5" />
+                    <input required type="number" id="min_order_quantity" name="min_order_quantity" min="1" autoComplete="off" value={minOrderQuantity} onChange={e => { debugFieldChange('min_order_quantity', e); setMinOrderQuantity(e.target.value); }} onKeyDown={e => debugKeyDown('min_order_quantity', e)} onMouseDown={e => debugMouseDown('min_order_quantity', e)} onWheel={e => debugWheel('min_order_quantity', e)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., 5" />
                     {minOrderExceedsQuantity && (
                         <p className="text-xs text-red-500 font-bold mt-1">Min. order quantity can&apos;t be greater than availability.</p>
                     )}
