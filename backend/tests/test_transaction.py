@@ -93,9 +93,12 @@ class TestStripeWebhookSetsPaid:
         supabase_mock.table(
             "transaction"
         ).select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
-            data=[{"listing_id": "listing-1", "quantity": 5}]
+            data=[{"listing_id": "listing-1", "quantity": 5, "buyer_id": "buyer-1", "seller_id": "seller-1"}]
         )
         supabase_mock.rpc.return_value.execute.return_value = SimpleNamespace(data=None)
+        monkeypatch.setattr(
+            "app.api.v1.transaction.recompute_trust_score", lambda supabase, user_id: None
+        )
 
         response = client.post(
             "/api/v1/stripe/webhook", content=b"{}", headers={"stripe-signature": "sig"}
@@ -131,7 +134,7 @@ class TestCompleteTransaction:
 
         assert response.status_code == 400
 
-    def test_seller_can_mark_paid_transaction_as_completed(self, authed_as, supabase_mock):
+    def test_seller_can_mark_paid_transaction_as_completed(self, authed_as, supabase_mock, monkeypatch):
         client = authed_as(user_id="seller-1")
         supabase_mock.table(
             "transaction"
@@ -142,6 +145,9 @@ class TestCompleteTransaction:
             "transaction"
         ).select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
             data=[{"id": "txn-1", "status": "completed", "seller_id": "seller-1", "buyer_id": "buyer-1"}]
+        )
+        monkeypatch.setattr(
+            "app.api.v1.transaction.recompute_trust_score", lambda supabase, user_id: None
         )
 
         response = client.post("/api/v1/transactions/txn-1/complete")
@@ -194,6 +200,9 @@ class TestRefundTransaction:
             "app.api.v1.transaction.stripe.Refund.create", MagicMock(return_value=SimpleNamespace(id="re_123"))
         )
         supabase_mock.rpc.return_value.execute.return_value = SimpleNamespace(data=None)
+        monkeypatch.setattr(
+            "app.api.v1.transaction.recompute_trust_score", lambda supabase, user_id: None
+        )
 
         response = client.post("/api/v1/transactions/txn-1/refund")
 
