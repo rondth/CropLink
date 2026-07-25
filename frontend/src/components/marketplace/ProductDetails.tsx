@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { api } from '@/lib/api';
+import { api, createConversation } from '@/lib/api';
 import PriceTrendChart from '@/components/ui/PriceTrendChart';
+import PriceDisplay from '@/components/ui/PriceDisplay';
 
 const LABELS = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
@@ -109,6 +110,8 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
         : null;
     const [isOrdering, setIsOrdering] = useState(false);
     const [orderError, setOrderError] = useState<string | null>(null);
+    const [isMessaging, setIsMessaging] = useState(false);
+    const [messageError, setMessageError] = useState<string | null>(null);
 
     const handleDecrease = () => setQuantity((q: number) => Math.max(minOrder, q - 1));
     const handleIncrease = () => setQuantity((q: number) => Math.min(maxQty, q + 1));
@@ -137,6 +140,24 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
         }
     };
 
+    const handleMessageSeller = async () => {
+        if (!isAuthenticated) {
+            router.push('/login');
+            return;
+        }
+
+        setIsMessaging(true);
+        setMessageError(null);
+        try {
+            const conversation = await createConversation({ listingId: product.id });
+            router.push(`/messages/${conversation.id}`);
+        } catch (err: any) {
+            setMessageError(err?.response?.data?.detail || 'Failed to start conversation. Please try again.');
+        } finally {
+            setIsMessaging(false);
+        }
+    };
+
     const harvestedDate = product.harvested_at
         ? new Date(product.harvested_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
         : 'N/A';
@@ -156,9 +177,14 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
 
             {/* product details */}
             <div className="bg-white p-5 mb-2 shadow-sm rounded-b-3xl z-10 relative">
-                <div className="text-3xl font-black text-CropLink-primary mb-1">
-                    {product.currency} {product.price ? Intl.NumberFormat('en-US').format(product.price) : '0.'} <span className="text-sm text-gray-500 font-medium">/ {unit}</span>
-                </div>
+                <PriceDisplay
+                    listing={product}
+                    preferredCurrency={user?.preferred_currency}
+                    unit={unit}
+                    primaryClassName="text-3xl font-black text-CropLink-primary mb-1"
+                    unitClassName="text-sm text-gray-500 font-medium"
+                    secondaryClassName="text-xs text-gray-400 font-semibold mb-1"
+                />
                 <h1 className="text-xl font-bold text-gray-800 leading-tight mb-3">{title}</h1>
                 
                 <div className="flex items-center gap-2 text-xs text-gray-500 font-bold bg-gray-50 p-2.5 rounded-xl">
@@ -271,7 +297,7 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                             <p className="text-sm font-black text-gray-800">{sellerProfile.name}</p>
                             <p className="text-[11px] text-gray-500 mt-0.5">
                                 <span className="text-amber-500 font-bold">
-                                    ★ {avgRating ?? '—'}
+                                    ★ {avgRating ?? '-'}
                                 </span>
                                 <span className="text-gray-300 mx-1">•</span>
                                 <span className="font-medium">
@@ -289,6 +315,19 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                             <div className="h-2.5 bg-gray-200 rounded w-1/3" />
                         </div>
                     </div>
+                )}
+
+                {!isOwnListing && (
+                    <button
+                        onClick={handleMessageSeller}
+                        disabled={isMessaging}
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-CropLink-primary text-CropLink-primary text-xs font-black active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                        {isMessaging ? 'Starting conversation...' : 'Message Seller'}
+                    </button>
+                )}
+                {messageError && (
+                    <p className="text-[11px] font-bold text-CropLink-accentRed mt-2 text-center">{messageError}</p>
                 )}
             </div>
                    {/* seller reviews */}

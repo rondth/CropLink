@@ -17,15 +17,60 @@ export default function CropsListing() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
+    const [cropName, setCropName] = useState('');
+    const [category, setCategory] = useState('');
+    const [currency, setCurrency] = useState('USD');
+    const [harvestDate, setHarvestDate] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [minOrderQuantity, setMinOrderQuantity] = useState('');
+    const [price, setPrice] = useState('');
+
+    const blockWheelStep = (e: React.WheelEvent<HTMLInputElement>) => {
+        e.currentTarget.blur();
+    };
+    const [recommendation, setRecommendation] = useState<{
+        verdict: 'sell_now' | 'wait';
+        reason: string;
+        wait_days_suggested: number;
+        confidence: string;
+        shelf_life_bucket: string;
+        matched_commodity: string | null;
+    } | null>(null);
+    const [recLoading, setRecLoading] = useState(false);
+    const recTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
         if (role === 'buyer') {
             router.push('/');
         }
     }, [role, router]);
 
+    useEffect(() => {
+        if (!cropName || !category) {
+            setRecommendation(null);
+            return;
+        }
+        if (recTimerRef.current) clearTimeout(recTimerRef.current);
+        recTimerRef.current = setTimeout(async () => {
+            setRecLoading(true);
+            try {
+                const payload: Record<string, string> = { crop_name: cropName, category, currency };
+                if (harvestDate) payload.harvest_date = harvestDate;
+                const { data } = await api.post('/prices/recommend', payload);
+                setRecommendation(data);
+            } catch {
+                setRecommendation(null);
+            } finally {
+                setRecLoading(false);
+            }
+        }, 700);
+    }, [cropName, category, currency, harvestDate]);
+
     if (role === 'buyer') {
-        return null; 
+        return null;
     }
+
+    const minOrderExceedsQuantity = quantity !== '' && minOrderQuantity !== '' && parseFloat(minOrderQuantity) > parseFloat(quantity);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -64,6 +109,11 @@ export default function CropsListing() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        if (minOrderExceedsQuantity) {
+            return;
+        }
+
         setIsLoading(true);
         setError('');
 
@@ -118,32 +168,66 @@ export default function CropsListing() {
                 {/* crop_name */}
                 <div>
                     <label htmlFor="crop_name" className="block text-xs font-bold text-gray-700 mb-1.5">Crop Name *</label>
-                    <input required type="text" id="crop_name" name="crop_name" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., Organic Carrots" />
+                    <input required type="text" id="crop_name" name="crop_name" value={cropName} onChange={e => setCropName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., Organic Carrots" />
                 </div>
 
                 {/* category */}
                 <div>
                     <label htmlFor="category" className="block text-xs font-bold text-gray-700 mb-1.5">Category *</label>
-                    <select required id="category" name="category" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
+                    <select required id="category" name="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
                         <option value="">Select a category</option>
                         <option value="Cereals & Tubers">Cereals & Tubers</option>
                         <option value="Meat, Fish & Eggs">Meat, Fish & Eggs</option>
                         <option value="Oil & Fats">Oil & Fats</option>
                         <option value="Pulses & Nuts">Pulses & Nuts</option>
                         <option value="Vegetables & Fruits">Vegetables & Fruits</option>
+                        <option value="Others">Others</option>
                     </select>
                 </div>
+                
+                <div>
+                    {/* harvested_date */}
+                    <label htmlFor="harvested_at" className="block text-xs font-bold text-gray-700 mb-1.5">Harvested date *</label>
+                    <input required type="date" id="harvested_at" name="harvested_at" value={harvestDate} onChange={e => setHarvestDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" />
+                </div>
+
+                {/* recommendation card */}
+                {(recLoading || recommendation) && (
+                    <div className={`rounded-xl p-4 text-sm border ${
+                        recLoading ? 'bg-gray-50 border-gray-200' :
+                        recommendation?.verdict === 'sell_now' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+                    }`}>
+                        {recLoading ? (
+                            <p className="text-xs text-gray-500 font-medium">Analyzing market data...</p>
+                        ) : recommendation?.verdict ? (
+                            <>
+                                <p className={`font-black text-sm ${recommendation.verdict === 'sell_now' ? 'text-green-700' : 'text-yellow-700'}`}>
+                                    {recommendation.verdict === 'sell_now' ? 'Sell Now' : `Wait ${recommendation.wait_days_suggested} days`}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">{recommendation.reason}</p>
+                                {recommendation.matched_commodity && (
+                                    <p className="text-[10px] text-gray-400 mt-2">Based on market data for: {recommendation.matched_commodity}</p>
+                                )}
+                            </>
+                        ) : (
+                            <p className="text-xs text-gray-500">No market data available for this crop.</p>
+                        )}
+                    </div>
+                )}
+                {!recLoading && recommendation?.verdict && (
+                    <p className="text-[10px] text-gray-400 px-1 -mt-3">*Not financial advice. Predictions are based on historical market data.</p>
+                )}
 
                 <div className="flex gap-3">
                     {/* price */}
                     <div className="flex-1">
                         <label htmlFor="price" className="block text-xs font-bold text-gray-700 mb-1.5">Price *</label>
-                        <input required type="number" id="price" name="price" min="0" step="0.01" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="0.00" />
+                        <input required type="number" id="price" name="price" min="0" step="0.01" autoComplete="off" value={price} onChange={e => setPrice(e.target.value)} onWheel={blockWheelStep} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="0.00" />
                     </div>
                     {/* currency */}
                     <div className="w-[100px]">
                         <label htmlFor="currency" className="block text-xs font-bold text-gray-700 mb-1.5">Currency *</label>
-                        <select id="currency" name="currency" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
+                        <select id="currency" name="currency" value={currency} onChange={e => setCurrency(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors appearance-none">
                             <option value="USD">USD</option>
                             <option value="THB">BAHT</option>
                             <option value="IDR">IDR</option>
@@ -160,7 +244,7 @@ export default function CropsListing() {
                     {/* quantity */}
                     <div className="flex-1">
                         <label htmlFor="quantity" className="block text-xs font-bold text-gray-700 mb-1.5">Quantity *</label>
-                        <input required type="number" id="quantity" name="quantity" min="0" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="Available qty" />
+                        <input required type="number" id="quantity" name="quantity" min="0" autoComplete="off" value={quantity} onChange={e => setQuantity(e.target.value)} onWheel={blockWheelStep} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="Available qty" />
                     </div>
                     {/* unit_of_measurement */}
                     <div className="w-[100px]">
@@ -177,14 +261,12 @@ export default function CropsListing() {
                 <div>
                     {/* min_order_quantity */}
                     <label htmlFor="min_order_quantity" className="block text-xs font-bold text-gray-700 mb-1.5">Min. Order Qty *</label>
-                    <input required type="number" id="min_order_quantity" name="min_order_quantity" min="1" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., 5" />
+                    <input required type="number" id="min_order_quantity" name="min_order_quantity" min="1" autoComplete="off" value={minOrderQuantity} onChange={e => setMinOrderQuantity(e.target.value)} onWheel={blockWheelStep} className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" placeholder="e.g., 5" />
+                    {minOrderExceedsQuantity && (
+                        <p className="text-xs text-red-500 font-bold mt-1">Min. order quantity can&apos;t be greater than availability.</p>
+                    )}
                 </div>
 
-                <div>
-                    {/* harvested_date */}
-                    <label htmlFor="harvested_at" className="block text-xs font-bold text-gray-700 mb-1.5">Harvested date *</label>
-                    <input required type="date" id="harvested_at" name="harvested_at" className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-xl focus:ring-CropLink-primary focus:border-CropLink-primary block p-2.5 outline-none transition-colors" />
-                </div>
 
                 <div>
                     {/* location */}
@@ -247,7 +329,7 @@ export default function CropsListing() {
 
                 {/* submit Button */}
                 <div className="pt-2 mt-2 border-t border-gray-100">
-                    <button type="submit" disabled={isLoading} className="w-full bg-CropLink-primary text-white font-black text-sm py-3.5 px-4 rounded-xl hover:bg-CropLink-dark active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100">
+                    <button type="submit" disabled={isLoading || minOrderExceedsQuantity} className="w-full bg-CropLink-primary text-white font-black text-sm py-3.5 px-4 rounded-xl hover:bg-CropLink-dark active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100">
                         {isLoading ? 'Publishing...' : 'Publish Listing'}
                     </button>
                 </div>

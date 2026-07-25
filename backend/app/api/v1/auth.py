@@ -14,7 +14,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     profile_picture_url: Optional[str] = None
-    preffered_currency: Optional[str] = None
+    preferred_currency: Optional[str] = None
     bio: Optional[str] = None
 
 # Signup endpoint
@@ -93,7 +93,7 @@ def login(body: LoginRequest):
     # Fetch role + name from profiles table
     profile = (
         supabase.table("profiles")
-        .select("role, name, preffered_currency")
+        .select("role, name, preferred_currency")
         .eq("user_id", user.id)
         .single()
         .execute()
@@ -109,7 +109,7 @@ def login(body: LoginRequest):
         email=user.email,
         role=profile.data["role"],
         name=profile.data["name"],
-        preffered_currency=profile.data.get("preffered_currency"),
+        preferred_currency=profile.data.get("preferred_currency"),
         access_token=session.access_token,
         refresh_token=session.refresh_token,
     )
@@ -133,7 +133,7 @@ def refresh_token(body: RefreshRequest):
 
     profile = (
         supabase.table("profiles")
-        .select("role, name, preffered_currency")
+        .select("role, name, preferred_currency")
         .eq("user_id", user.id)
         .single()
         .execute()
@@ -144,7 +144,7 @@ def refresh_token(body: RefreshRequest):
         email=user.email,
         role=profile.data["role"],
         name=profile.data["name"],
-        preffered_currency=profile.data.get("preffered_currency"),
+        preferred_currency=profile.data.get("preferred_currency"),
         access_token=session.access_token,
         refresh_token=session.refresh_token,
     )
@@ -167,7 +167,7 @@ def logout(user_id: str = Depends(get_current_user_id)):
 def get_public_profile(user_id: str):
     profile = (
         supabase.table("profiles")
-        .select("user_id, name, email, profile_picture_url, bio, role")
+        .select("user_id, name, email, profile_picture_url, bio, role, trust_score, trust_score_basis")
         .eq("user_id", user_id)
         .single()
         .execute()

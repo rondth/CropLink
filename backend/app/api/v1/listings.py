@@ -2,16 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator, Field
 from typing import Optional, Literal
 from datetime import date, datetime, timezone
-from app.core.dependencies import get_current_user, get_current_user_id
+from app.core.dependencies import get_current_user, get_current_user_id, get_optional_user_id
 from app.core.supabase import supabase
+from app.utils import get_blocked_user_ids, apply_converted_prices
+from ml.seasonal import make_recommendation
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
 # SCHEMAS
 
+ListingCategory = Literal[
+    "Cereals & Tubers",
+    "Meat, Fish & Eggs",
+    "Oil & Fats",
+    "Pulses & Nuts",
+    "Vegetables & Fruits",
+    "Others",
+]
+
 class ListingCreate(BaseModel):
     crop_name: str = Field(..., min_length=1, max_length=100)
-    category: str = Field(..., min_length=1, max_length=50)
+    category: ListingCategory
     currency: str
     price: float = Field(..., gt=0)
     unit_of_measurement: str
@@ -22,14 +33,14 @@ class ListingCreate(BaseModel):
     location: str = Field(..., min_length=1, max_length=100)
     min_order_quantity: float = Field(..., gt=0)
 
-    @field_validator("crop_name", "category", "location")
+    @field_validator("crop_name", "location")
     @classmethod
     def strip_and_not_empty(cls, v: str) -> str:
         v = v.strip()
         if not v:
             raise ValueError("Cannot be blank or whitespace only")
         return v
-    
+
     @field_validator("harvested_at")
     @classmethod
     def not_future_date(cls, v: datetime) -> datetime:
@@ -39,7 +50,7 @@ class ListingCreate(BaseModel):
         if v > now:
             raise ValueError("Harvest date cannot be in the future")
         return v
-    
+
     @field_validator("min_order_quantity")
     @classmethod
     def min_order_lte_quantity(cls, v: float, info) -> float:
@@ -50,7 +61,7 @@ class ListingCreate(BaseModel):
 
 class ListingUpdate(BaseModel):
     crop_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    category: Optional[str] = Field(None, min_length=1, max_length=50)
+    category: Optional[ListingCategory] = None
     price: Optional[float] = Field(None, gt=0)
     currency: Optional[str] = None
     quantity: Optional[float] = Field(None, gt=0)
@@ -62,7 +73,7 @@ class ListingUpdate(BaseModel):
     location: Optional[str] = Field(None, min_length=1, max_length=100)
     min_order_quantity: Optional[float] = Field(None, gt=0)
 
-    @field_validator("crop_name", "category", "location")
+    @field_validator("crop_name", "location")
     @classmethod
     def strip_and_not_empty(cls, v: str) -> str:
         v = v.strip()
@@ -117,9 +128,14 @@ def create_listing(
 
 # GET /listings
 @router.get("/")
-def get_listings():
+def get_listings(user_id: Optional[str] = Depends(get_optional_user_id), target_currency: Optional[str] = None):
     response = supabase.table("crops_listings").select("*").eq("status", "active").gt("quantity", 0).execute()
     listings = response.data
+
+    if user_id:
+        blocked_ids = get_blocked_user_ids(supabase, user_id)
+        if blocked_ids:
+            listings = [listing for listing in listings if listing.get("seller_id") not in blocked_ids]
 
     seller_ids = list({listing["seller_id"] for listing in listings if listing.get("seller_id")})
     if seller_ids:
@@ -127,6 +143,9 @@ def get_listings():
         seller_map = {p["user_id"]: p["name"] for p in profiles.data}
         for listing in listings:
             listing["seller_name"] = seller_map.get(listing.get("seller_id"))
+
+    if target_currency:
+        apply_converted_prices(supabase, listings, target_currency)
 
     return listings
 
@@ -379,11 +398,34 @@ def get_product_price_data(produce_id: str, currency:str = "USD"):
 
     return data
 
+# GET /listings/{id}/recommendation
+@router.get("/{listing_id}/recommendation")
+def get_listing_recommendation(listing_id: str):
+    response = supabase.table("crops_listings").select("crop_name, category, currency, harvested_at").eq("id", listing_id).limit(1).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    listing = response.data[0]
+    harvest_date: date | None = None
+    if listing.get("harvested_at"):
+        try:
+            harvest_date = datetime.fromisoformat(listing["harvested_at"]).date()
+        except ValueError:
+            harvest_date = None
+
+    return make_recommendation(
+        crop_name=listing["crop_name"],
+        category=listing.get("category", ""),
+        harvest_date=harvest_date,
+        currency=listing.get("currency", "USD"),
+    )
+
+
 # GET /listings/{id}
 # get single listing
 @router.get("/{listing_id}")
 
-def get_listing(listing_id: str):
+def get_listing(listing_id: str, target_currency: Optional[str] = None):
     response = supabase.table("crops_listings").select("*").or_(f"id.eq.{listing_id},produce_id.eq.{listing_id}").limit(1).execute()
 
     if not response.data:
@@ -395,6 +437,9 @@ def get_listing(listing_id: str):
     if seller_id:
         profile = supabase.table("profiles").select("name").eq("user_id", seller_id).limit(1).execute()
         listing["seller_name"] = profile.data[0].get("name") if profile.data else None
+
+    if target_currency:
+        apply_converted_prices(supabase, [listing], target_currency)
 
     return listing
     

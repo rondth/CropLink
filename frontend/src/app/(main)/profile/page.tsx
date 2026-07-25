@@ -4,7 +4,7 @@ import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-im
 import 'react-image-crop/dist/ReactCrop.css';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle } from 'lucide-react';
+import { Camera, Edit2, LogOut, Check, X, User, Banknote, CheckCircle, Ban, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import ReviewCard from '@/components/marketplace/ReviewCard';
@@ -15,13 +15,14 @@ export default function Profile() {
 
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState('');
-    const [prefferedCurrency, setprefferedCurrency] = useState('USD');
+    const [preferredCurrency, setPreferredCurrency] = useState('USD');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [profileLoading, setProfileLoading] = useState(true);
     const [numListings, setNumListings] = useState(0);
+    const [trustScore, setTrustScore] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -38,13 +39,14 @@ export default function Profile() {
             api.get('/auth/me').then(res => {
                 setName(res.data.name || '');
                 setAvatarUrl(res.data.profile_picture_url || null);
-                setprefferedCurrency(res.data.preffered_currency || 'USD');
+                setPreferredCurrency(res.data.preferred_currency || 'USD');
                 setBio(res.data.bio || '');
                 setNumListings(res.data.num_listings || 0);
+                setTrustScore(res.data.trust_score ?? null);
                 setProfileLoading(false);
             }).catch(() => {
                 setName(user.name || '');
-                setprefferedCurrency(user.preffered_currency || 'USD');
+                setPreferredCurrency(user.preferred_currency || 'USD');
                 setProfileLoading(false);
             });
         }
@@ -176,7 +178,7 @@ export default function Profile() {
                 }
             }
 
-            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preffered_currency: prefferedCurrency, bio });
+            await api.patch('/auth/me', { name, profile_picture_url: finalAvatarUrl, preferred_currency: preferredCurrency, bio });
 
             setAvatarUrl(finalAvatarUrl);
             setIsEditing(false);
@@ -198,7 +200,7 @@ export default function Profile() {
         api.get('/auth/me').then(res => {
             setName(res.data.name || '');
             setAvatarUrl(res.data.profile_picture_url || null);
-            setprefferedCurrency(res.data.preffered_currency || 'USD');
+            setPreferredCurrency(res.data.preferred_currency || 'USD');
             setBio(res.data.bio || '');
         });
     };
@@ -242,7 +244,7 @@ export default function Profile() {
             <div className="relative">
                 <div className="h-32 bg-[#deebd8]" />
 
-                {/* edit / save / cancel — top right */}
+                {/* edit / save / cancel top right */}
                 <div className="absolute top-4 right-4 flex gap-2 z-20">
                     {!isEditing ? (
                         <button
@@ -353,9 +355,12 @@ export default function Profile() {
                 <div className="w-px h-8 bg-gray-100" />
 
                 <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Reviews</span>
-                    <span className="text-xl font-black text-gray-800">
-                        {reviewsLoading ? '—' : reviews.length}
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Review Ratings</span>
+                    <span className="text-xl font-black text-amber-500">
+                        {reviewsLoading ? '-' : avgRating ? `★ ${avgRating}` : '★ -'}
+                    </span>
+                    <span className="text-[9px] text-gray-400 font-medium">
+                        {reviewsLoading ? '' : `${reviews.length} review${reviews.length === 1 ? '' : 's'}`}
                     </span>
                 </div>
 
@@ -364,7 +369,7 @@ export default function Profile() {
                 <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trust Score</span>
                     <span className="text-xl font-black text-amber-500">
-                        {reviewsLoading ? '—' : avgRating ? `★ ${avgRating}` : '★ —'}
+                        {profileLoading || trustScore === null ? '-' : `★ ${trustScore.toFixed(2)}`}
                     </span>
                 </div>
             </div>
@@ -375,8 +380,8 @@ export default function Profile() {
                 {isEditing ? (
                     <div className="relative">
                         <select
-                            value={prefferedCurrency}
-                            onChange={(e) => setprefferedCurrency(e.target.value)}
+                            value={preferredCurrency}
+                            onChange={(e) => setPreferredCurrency(e.target.value)}
                             className="w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm font-bold rounded-xl p-2.5 outline-none focus:border-CropLink-primary transition-colors appearance-none pr-10"
                         >
                             <option value="USD">USD</option>
@@ -397,7 +402,7 @@ export default function Profile() {
                     <div className="flex items-center gap-2">
                         <Banknote className="w-4 h-4 text-gray-400 shrink-0" />
                         <span className="inline-flex px-2.5 py-0.5 text-[10px] font-black rounded-full bg-green-50 text-green-700">
-                            {prefferedCurrency}
+                            {preferredCurrency}
                         </span>
                     </div>
                 )}
@@ -470,6 +475,18 @@ export default function Profile() {
                     </>
                 )}
             </div>
+
+            {/* blocked users */}
+            <button
+                onClick={() => router.push('/profile/blocked')}
+                className="mx-5 mt-3 w-[calc(100%-40px)] bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 flex items-center justify-between active:scale-[0.99] transition-transform"
+            >
+                <div className="flex items-center gap-2">
+                    <Ban className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-black text-gray-800">Blocked Users</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+            </button>
 
             {/* logout */}
             <button

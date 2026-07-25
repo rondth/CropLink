@@ -1,0 +1,65 @@
+countryiso3,date,admin1,admin2,market,market_id,latitude,longitude,category,commodity,commodity_id,unit,priceflag,pricetype,currency,price,usdprice,seller_email,seller_id
+PHL,2026-02-15,Region X,Misamis Oriental,Misamis Oriental,4312,8.48,124.65,vegetables and fruits,Garlic,105,KG,actual,Retail,PHP,148.57,2.56,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-03-15,Region IV-A,Batangas,Batangas,4537,13.76,121.06,cereals and tubers,Rice (regular milled),80,KG,actual,Retail,PHP,46.79,0.78,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-01-15,Region XII,Sarangani,Sarangani,4319,6.1,125.29,vegetables and fruits,Calamansi,847,KG,actual,Retail,PHP,61.25,1.03,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-01-15,Region IV-B,Occidental Mindoro,Occidental Mindoro,4283,13.23,120.59,vegetables and fruits,Ginger,712,KG,actual,Retail,PHP,135.63,2.28,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-01-15,Region IV-B,Palawan,Palawan,4358,9.78,118.74,vegetables and fruits,Squashes,340,KG,actual,Retail,PHP,72.5,1.22,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-03-15,Region VI,Aklan,Aklan,4291,11.71,122.37,cereals and tubers,Potatoes (Irish),148,KG,actual,Retail,PHP,156.5,2.62,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-01-15,Region IV-B,Marinduque,Marinduque,4282,13.45,121.84,vegetables and fruits,Mangoes (carabao),848,KG,actual,Retail,PHP,225.0,3.78,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-01-15,Cordillera Administrative region,Mountain Province,Mountain Province,4266,17.09,120.98,meat fish and eggs,Meat (beef chops with bones),123,KG,actual,Retail,PHP,366.67,6.16,test.seller1@example.com,6e473348-47b3-4e19-b8bb-4f1740a06950
+PHL,2026-03-15,Region IV-A,Quezon,Quezon,4281,13.93,121.61,vegetables and fruits,Bananas (latundan),846,KG,actual,Retail,PHP,72.5,1.21,test.seller2@example.com,be36d547-6c8d-4b6b-a427-729083129fc5
+MMR,2026-03-15,Sagaing,Hkamti,Homalin Myoma,10799,24.86,94.92,vegetables and fruits,Tomatoes (local),346,KG,actual,Retail,MMK,612.0,0.29,test.seller2@example.com,be36d547-6c8d-4b6b-a427-729083129fc5
+PHL,2026-01-15,Autonomous region in Muslim Mindanao,Maguindanao,Maguindanao,4327,6.72,124.79,cereals and tubers,Rice (well milled),872,KG,actual,Retail,PHP,46.18,0.78,test.seller2@example.com,be36d547-6c8d-4b6b-a427-729083129fc5
+PHL,2026-01-15,Region XI,Davao Oriental,Davao Oriental,4317,6.96,126.21,vegetables and fruits,Cabbage,181,KG,actual,Retail,PHP,79.38,1.33,test.seller2@example.com,be36d547-6c8d-4b6b-a427-729083129fc5
+LAO,2026-02-15,Houaphan,Xamneua,Xamneua,1643,20.42,104.04,cereals and tubers,Rice (glutinous unmilled),196,KG,actual,Retail,LAK,13000.0,0.61,test.seller2@example.com,be36d547-6c8d-4b6b-a427-729083129fc5
+PHL,2026-03-15,Region III,Bataan,Bataan,4274,14.67,120.53,vegetables and fruits,Bananas (lakatan),845,KG,actual,Retail,PHP,118.0,1.97,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+MMR,2026-03-15,Shan (North),Kyaukme,Nawnghkio,11374,22.33,96.8,pulses and nuts,Pulses,163,KG,actual,Retail,MMK,7752.0,3.7,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-02-15,Region V,Albay,Albay,4359,13.15,123.75,vegetables and fruits,Eggplants,434,KG,actual,Retail,PHP,140.0,2.42,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-01-15,Region II,Nueva Vizcaya,Nueva Vizcaya,4271,16.49,121.15,meat fish and eggs,Meat (beef chops with bones),123,KG,actual,Retail,PHP,426.25,7.17,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-02-15,Region VIII,Northern Samar,Northern Samar,4302,12.5,124.64,vegetables and fruits,Onions (red),110,KG,actual,Retail,PHP,200.0,3.45,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-01-15,Region V,Sorsogon,Sorsogon,4290,12.97,124.01,vegetables and fruits,Bananas (lakatan),845,KG,actual,Retail,PHP,114.0,1.92,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+MMR,2026-02-15,Mon,Mawlamyine,Mya Thida,3353,15.25,97.85,vegetables and fruits,Onions (local),324,KG,actual,Retail,MMK,3264.0,1.56,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+MMR,2026-02-15,Sagaing,Kawlin,Wuntho,11191,23.9,95.68,vegetables and fruits,Tomatoes (local),346,KG,actual,Retail,MMK,5508.0,2.63,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-01-15,Region IV-A,Batangas,Batangas,4537,13.76,121.06,meat fish and eggs,Fish (tilapia),405,KG,actual,Retail,PHP,150.75,2.53,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-03-15,Region III,Tarlac,Tarlac,4277,15.49,120.59,vegetables and fruits,Eggplants,434,KG,actual,Retail,PHP,86.0,1.44,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-01-15,Cordillera Administrative region,Benguet,Benguet,4353,16.45,120.59,vegetables and fruits,Pineapples,524,KG,actual,Retail,PHP,120.0,2.02,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+IDN,2026-01-15,JAWA TIMUR,KOTA BLITAR,Pasar Pon,2901,-8.09,112.17,meat fish and eggs,Meat (chicken),94,KG,actual,Retail,IDR,37000.0,2.19,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-03-15,Region X,Camiguin,Camiguin,4309,9.25,124.72,vegetables and fruits,Eggplants,434,KG,actual,Retail,PHP,103.75,1.74,test.seller3@example.com,3358d470-71a8-41dc-81c6-5f83339eafef
+PHL,2026-02-15,Region VI,Guimaras,Guimaras,4294,10.67,122.59,meat fish and eggs,Crab,860,KG,actual,Retail,PHP,326.67,5.64,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-03-15,Region II,Nueva Vizcaya,Nueva Vizcaya,4271,16.49,121.15,pulses and nuts,Groundnuts (unshelled),118,KG,actual,Retail,PHP,111.43,1.86,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-01-15,Region XIII,Dinagat Islands,Dinagat Islands,4323,10.01,125.57,vegetables and fruits,Ginger,712,KG,actual,Retail,PHP,157.5,2.65,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+IDN,2026-01-15,KALIMANTAN TIMUR,KOTA SAMARINDA,Pasar Segiri,2933,-0.48,117.15,oil and fats,Oil (vegetable),96,KG,actual,Retail,IDR,22000.0,1.3,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+MMR,2026-02-15,Kachin,Bhamo,Man Wein Gyi,3304,23.83,97.59,miscellaneous food,Salt,185,KG,actual,Retail,MMK,2142.0,1.02,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-01-15,Region VIII,Leyte,Leyte,4301,11.25,125.0,meat fish and eggs,Fish (tilapia),405,KG,actual,Retail,PHP,203.33,3.42,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-01-15,Region IV-B,Occidental Mindoro,Occidental Mindoro,4283,13.23,120.59,meat fish and eggs,Anchovies,711,KG,actual,Retail,PHP,102.5,1.72,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-02-15,Autonomous region in Muslim Mindanao,Maguindanao,Maguindanao,4327,6.72,124.79,meat fish and eggs,Fish (milkfish),840,KG,actual,Retail,PHP,220.63,3.81,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-03-15,Region II,Quirino,Quirino,4272,16.52,121.52,vegetables and fruits,Beans (string),406,KG,actual,Retail,PHP,83.75,1.4,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-01-15,Region IV-B,Romblon,Romblon,4285,12.58,122.27,vegetables and fruits,Pineapples,524,KG,actual,Retail,PHP,83.75,1.41,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-03-15,Region IX,Zamboanga del Sur,Zamboanga City,178,6.91,122.07,vegetables and fruits,Mangoes (carabao),848,KG,actual,Retail,PHP,155.83,2.61,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-01-15,Region III,Bulacan,Pampanga,4276,15.02,121.09,vegetables and fruits,Beans (string),406,KG,actual,Retail,PHP,136.0,2.29,test.seller4@example.com,54f2565a-323a-4c91-80b1-2d6672737f72
+PHL,2026-01-15,Region I,Ilocos Sur,Ilocos Sur,4268,17.57,120.38,meat fish and eggs,Meat (chicken whole),125,KG,actual,Retail,PHP,246.25,4.14,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-02-15,Region VI,Aklan,Aklan,4291,11.71,122.37,meat fish and eggs,Fish (milkfish),840,KG,actual,Retail,PHP,223.75,3.86,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-01-15,Region IX,Zamboanga del Sur,Zamboanga City,178,6.91,122.07,cereals and tubers,Rice (well milled),872,KG,actual,Retail,PHP,50.55,0.85,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-03-15,Region IX,Zamboanga del Norte,Zamboanga del Norte,4305,8.59,123.34,vegetables and fruits,Cabbage (chinese),843,KG,actual,Retail,PHP,90.0,1.51,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-03-15,Region VIII,Southern Leyte,Southern Leyte,4304,10.13,124.83,meat fish and eggs,Meat (beef chops with bones),123,KG,actual,Retail,PHP,384.0,6.43,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-01-15,Region II,Cagayan,Cagayan,4355,17.63,121.73,vegetables and fruits,Tomatoes,114,KG,actual,Retail,PHP,119.38,2.01,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-02-15,Region III,Tarlac,Tarlac,4277,15.49,120.59,meat fish and eggs,Anchovies,711,KG,actual,Retail,PHP,197.5,3.41,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-03-15,Region XII,South Cotabato,South Cotabato,4362,6.5,124.84,vegetables and fruits,Garlic,105,KG,actual,Retail,PHP,136.0,2.28,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+IDN,2026-01-15,PAPUA,JAYAWIJAYA,Pasar Baru Wamena,10791,-4.07,138.94,meat fish and eggs,Meat (chicken),94,KG,actual,Retail,IDR,46500.0,2.75,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+LAO,2026-02-15,Vientiane Capital,Xaysetha,Vientiane Municipality,666,17.98,102.63,meat fish and eggs,Fish (tilapia farmed),311,KG,actual,Retail,LAK,48875.0,2.28,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-01-15,Region VIII,Biliran,Biliran,4299,11.56,124.39,cereals and tubers,Semolina (white),850,KG,actual,Retail,PHP,50.67,0.85,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-03-15,Region IX,Zamboanga Sibugay,Zamboanga Sibugay,4307,7.78,122.58,vegetables and fruits,Ginger,712,KG,actual,Retail,PHP,123.75,2.07,test.seller5@example.com,12d89aa4-5379-49aa-b690-6588491640df
+PHL,2026-01-15,Cordillera Administrative region,Abra,Abra,4262,17.6,120.62,meat fish and eggs,Meat (beef),141,KG,actual,Retail,PHP,351.25,5.9,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-03-15,National Capital region,Metropolitan Manila,Metro Manila,167,14.6,120.98,vegetables and fruits,Choko,851,KG,actual,Retail,PHP,56.87,0.95,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-02-15,Region V,Masbate,Camarines Sur,4287,12.55,123.27,meat fish and eggs,Fish (milkfish),840,KG,actual,Retail,PHP,262.25,4.53,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-02-15,Cordillera Administrative region,Ifugao,Ifugao,4264,16.8,121.12,vegetables and fruits,Squashes,340,KG,actual,Retail,PHP,54.29,0.94,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-01-15,Region V,Masbate,Camarines Sur,4287,12.55,123.27,vegetables and fruits,Squashes,340,KG,actual,Retail,PHP,84.5,1.42,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-03-15,Autonomous region in Muslim Mindanao,Tawi-Tawi,Tawi-Tawi,4329,5.03,119.77,meat fish and eggs,Meat (beef),141,KG,actual,Retail,PHP,462.5,7.74,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-01-15,Region VI,Aklan,Aklan,4291,11.71,122.37,vegetables and fruits,Ginger,712,KG,actual,Retail,PHP,197.75,3.32,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+MMR,2026-01-15,Sagaing,Hkamti,Mingalar market,3287,25.99,95.7,cereals and tubers,Rice (low quality),145,KG,actual,Retail,MMK,2193.0,1.05,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+IDN,2026-01-15,JAWA TIMUR,KOTA KEDIRI,Pasar Pahing,2902,-7.82,112.02,cereals and tubers,Rice (medium quality),753,KG,actual,Retail,IDR,14750.0,0.87,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+MMR,2026-02-15,Sagaing,Mawlaik,Mawlaik,11186,23.64,94.42,miscellaneous food,Salt,185,KG,actual,Retail,MMK,2601.0,1.24,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-02-15,Region VIII,Biliran,Biliran,4299,11.56,124.39,meat fish and eggs,Meat (pork),140,KG,actual,Retail,PHP,340.0,5.87,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-01-15,Region VI,Iloilo,Iloilo,4360,10.69,122.57,meat fish and eggs,Crab,860,KG,actual,Retail,PHP,437.5,7.35,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-03-15,Region V,Albay,Albay,4359,13.15,123.75,meat fish and eggs,Meat (beef chops with bones),123,KG,actual,Retail,PHP,424.5,7.1,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937
+PHL,2026-02-15,Region XIII,Surigao del Sur,Surigao del Sur,4363,9.06,126.2,cereals and tubers,Rice (special),874,KG,actual,Retail,PHP,62.92,1.09,bobsmith@gmail.com,47bd6926-69da-4bb9-b0e2-fadc1c6d4937

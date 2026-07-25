@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { getCurrencySymbol, calcSubtotal, filterProducts, PLATFORM_FEE_RATE } from '../lib/utils';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { getCurrencySymbol, calcSubtotal, filterProducts, PLATFORM_FEE_RATE, timeAgo, truncatePreview } from '../lib/utils';
 
 function calculateTotal(price: number, quantity: number): number {
     const sub = price * quantity;
@@ -76,5 +76,82 @@ describe('filterProducts', () => {
 
     it('returns empty when nothing matches', () => {
         expect(filterProducts(products, 'Grains', '')).toHaveLength(0);
+    });
+});
+
+describe('timeAgo', () => {
+    const NOW = new Date('2026-07-12T12:00:00.000Z');
+
+    beforeEach(() => vi.useFakeTimers().setSystemTime(NOW));
+    afterEach(() => vi.useRealTimers());
+
+    function minutesAgo(n: number): string {
+        return new Date(NOW.getTime() - n * 60 * 1000).toISOString();
+    }
+
+    function hoursAgo(n: number): string {
+        return new Date(NOW.getTime() - n * 60 * 60 * 1000).toISOString();
+    }
+
+    function daysAgo(n: number): string {
+        return new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    it("returns 'now' for anything under a minute", () => {
+        expect(timeAgo(minutesAgo(0))).toBe('now');
+    });
+
+    it('returns minutes for under an hour', () => {
+        expect(timeAgo(minutesAgo(5))).toBe('5m');
+    });
+
+    it('returns hours for under a day', () => {
+        expect(timeAgo(hoursAgo(2))).toBe('2h');
+        expect(timeAgo(hoursAgo(23))).toBe('23h');
+    });
+
+    it("returns 'Yesterday' for exactly one day ago", () => {
+        expect(timeAgo(daysAgo(1))).toBe('Yesterday');
+    });
+
+    it('returns days for 2-6 days ago', () => {
+        expect(timeAgo(daysAgo(3))).toBe('3d');
+        expect(timeAgo(daysAgo(6))).toBe('6d');
+    });
+
+    it('returns weeks once 7 days have passed', () => {
+        expect(timeAgo(daysAgo(7))).toBe('1w');
+        expect(timeAgo(daysAgo(20))).toBe('2w');
+    });
+
+    it('returns months once weeks reach 5', () => {
+        expect(timeAgo(daysAgo(60))).toBe('2mo');
+    });
+
+    it('returns years for anything a year or older', () => {
+        expect(timeAgo(daysAgo(400))).toBe('1y');
+    });
+});
+
+describe('truncatePreview', () => {
+    it('returns content unchanged when under the limit', () => {
+        expect(truncatePreview('hello')).toBe('hello');
+    });
+
+    it('returns content unchanged when exactly at the limit', () => {
+        const content = 'x'.repeat(80);
+        expect(truncatePreview(content)).toBe(content);
+        expect(truncatePreview(content)).toHaveLength(80);
+    });
+
+    it('truncates content over the limit to exactly 80 chars', () => {
+        const content = 'x'.repeat(120);
+        const result = truncatePreview(content);
+        expect(result).toHaveLength(80);
+        expect(result).toBe('x'.repeat(80));
+    });
+
+    it('returns an empty string unchanged', () => {
+        expect(truncatePreview('')).toBe('');
     });
 });

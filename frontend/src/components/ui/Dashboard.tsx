@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import Image from 'next/image';
+import { api, getRecommendedDistributors, RecommendedDistributor } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { getCurrencySymbol, formatAmount } from '@/lib/utils';
@@ -181,18 +182,21 @@ export default function Dashboard() {
     const [activeOrdersCount, setActiveOrdersCount] = useState(0);
     const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
     const [deleteModal, setDeleteModal] = useState<{ id: string; name: string } | null>(null);
+    const [recommendedDistributors, setRecommendedDistributors] = useState<RecommendedDistributor[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [listingsResponse, transactionsResponse] = await Promise.all([
+                const [listingsResponse, transactionsResponse, distributors] = await Promise.all([
                     api.get('/listings/me'),
                     api.get('/transactions'),
+                    getRecommendedDistributors(5),
                 ]);
 
                 const listings = listingsResponse.data;
                 setMyListings(listings);
+                setRecommendedDistributors(distributors);
 
                 // inventory calculation 
                 const activeListings = listings.filter((l: any) => l.status === 'active');
@@ -448,6 +452,35 @@ export default function Dashboard() {
                                 </div>
                                 <div className="text-right">
                                         <p className="text-xs font-black text-CropLink-primary">{getCurrencySymbol(listing.currency)} {Intl.NumberFormat('en-US').format(parseFloat(listing.price))} <span className="text-[9px] text-gray-400 font-medium">/{listing.unit_of_measurement}</span></p>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* recommended distributors */}
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-800 mb-4">Recommended Distributors</h3>
+
+                <div className="flex flex-col gap-3">
+                    {recommendedDistributors.length === 0 ? (
+                        <p className="text-xs text-gray-500 text-center py-4">No distributors to recommend yet.</p>
+                    ) : (
+                        recommendedDistributors.map((d, index, arr) => (
+                            <div key={d.buyer_id} className={`flex items-center gap-3 ${index < arr.length - 1 ? 'border-b border-gray-50 pb-3' : ''}`}>
+                                <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-white shadow shrink-0">
+                                    <Image src={d.profile_picture_url || '/profile.png'} alt={d.name || 'Unnamed buyer'} fill className="object-cover" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="text-xs font-bold text-gray-800">{d.name || 'Unnamed buyer'}</h4>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">{d.trust_score_basis}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-black text-amber-500">
+                                        ★ {d.trust_score}
+                                    </p>
+                                    <p className="text-[9px] text-gray-400">Trust Score</p>
                                 </div>
                             </div>
                         ))

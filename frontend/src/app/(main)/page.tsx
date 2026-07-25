@@ -4,6 +4,7 @@ import Categories from '@/components/layout/Categories';
 import ProductGrid from '@/components/marketplace/ProductGrid';
 import Dashboard from '@/components/ui/Dashboard';
 import { useRole } from '@/components/layout/RoleContext';
+import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/lib/api';
 import ProductDetails from '@/components/marketplace/ProductDetails';
 import { useSearchParams } from 'next/navigation';
@@ -18,6 +19,8 @@ interface Product {
 
 function HomeContent() {
     const { role } = useRole();
+    const { user } = useAuth();
+    const preferredCurrency = user?.preferred_currency;
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState<Product[]>([]);
     const [searchFilter, setSearchFilter] = useState('');
@@ -34,23 +37,27 @@ function HomeContent() {
         }
         const fetchListings = async () => {
             try {
-                const response = await api.get('/listings/');
+                const response = await api.get('/listings/', {
+                    params: preferredCurrency ? { target_currency: preferredCurrency } : undefined,
+                });
                 setProducts(response.data);
             } catch (error) {
                 console.error("Failed to fetch listings:", error);
             }
         };
         fetchListings();
-    }, []);
+    }, [preferredCurrency]);
 
     useEffect(() => {
         const listingId = searchParams.get('listing_id');
         if (!listingId) return;
 
-        api.get(`/listings/${listingId}`)
+        api.get(`/listings/${listingId}`, {
+            params: preferredCurrency ? { target_currency: preferredCurrency } : undefined,
+        })
             .then(res => setSelectedProduct(res.data))
             .catch(err => console.error('Failed to load listing from URL:', err));
-    }, [searchParams]);
+    }, [searchParams, preferredCurrency]);
 
     const filteredProducts = filterProducts(products, selectedCategory, searchFilter);
 

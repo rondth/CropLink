@@ -14,6 +14,7 @@ env/
 htmlcov/
 .coverage
 .zshrc
+*.pkl
 
 # ========================
 # Node / Express (Frontend)
@@ -23,7 +24,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-package-lock.json
 yarn.lock
 tsconfig.tsbuildinfo
 next-env.d.ts

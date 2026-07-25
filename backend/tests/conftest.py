@@ -1,10 +1,21 @@
+import os
+
+# Settings() is instantiated at import time in app/core/config.py, so `from main
+# import app` below crashes without these vars set; CI and fresh clones have no .env.
+os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
+os.environ.setdefault("SUPABASE_ANON_KEY", "test-anon-key")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
+os.environ.setdefault("SUPABASE_JWT_PUBLIC_KEY", '{"keys": []}')
+os.environ.setdefault("STRIPE_SECRET_KEY", "sk_test_dummy")
+os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_dummy")
+
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from app.core.dependencies import get_current_user, get_current_user_id
+from app.core.dependencies import get_current_user, get_current_user_id, get_optional_user_id
 
 
 @pytest.fixture
@@ -27,6 +38,10 @@ def supabase_mock(monkeypatch):
 
     monkeypatch.setattr("app.api.v1.auth.supabase", mock)
     monkeypatch.setattr("app.api.v1.listings.supabase", mock)
+    monkeypatch.setattr("app.api.v1.users.supabase", mock)
+    monkeypatch.setattr("app.api.v1.transaction.supabase", mock)
+    monkeypatch.setattr("app.api.v1.messaging.supabase", mock)
+    monkeypatch.setattr("app.api.v1.distributors.supabase", mock)
     return mock
 
 
@@ -42,12 +57,14 @@ def authed_as(client):
         payload = {"sub": user_id, "user_metadata": {"role": role}}
         app.dependency_overrides[get_current_user] = lambda: payload
         app.dependency_overrides[get_current_user_id] = lambda: payload["sub"]
+        app.dependency_overrides[get_optional_user_id] = lambda: payload["sub"]
         return client
 
     yield _factory
 
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_current_user_id, None)
+    app.dependency_overrides.pop(get_optional_user_id, None)
 
 
 @pytest.fixture
