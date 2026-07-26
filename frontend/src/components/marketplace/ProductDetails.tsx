@@ -62,8 +62,8 @@ export default function ProductDetails({ product, onBack, onSellerClick }: { pro
                 console.error("Market data fetch failed:", err);
             }
         };
-        if (product.id) fetchMarketData();
-    }, [product.id, product.currency]);
+        if (product.id && product.produce_id) fetchMarketData();
+    }, [product.id, product.produce_id, product.currency]);
 
     useEffect(() => {
         const id = requestAnimationFrame(() => {
