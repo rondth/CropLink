@@ -1,6 +1,19 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page, APIResponse } from '@playwright/test';
 
 const LISTING_NAME = `E2E Test Crop ${Date.now()}`;
+
+async function deleteCreatedListing(page: Page, createResponse: APIResponse) {
+    if (!createResponse.ok()) return;
+    const created = await createResponse.json();
+    const id = Array.isArray(created) ? created[0]?.id : created?.id;
+    if (!id) return;
+
+    const apiBase = createResponse.url().replace(/\/listings\/?$/, '');
+    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    await page.request.delete(`${apiBase}/listings/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+}
 
 test.describe('Seller Auth', () => {
     test('redirects buyer role away from create-listing page', async ({ browser }) => {
@@ -76,11 +89,16 @@ test.describe('Seller Create Listing', () => {
         if (await harvestedInput.count() > 0) await harvestedInput.fill('2026-06-01');
 
         const submitBtn = page.locator('button[type="submit"]').first();
-        await submitBtn.click();
+        const [createResponse] = await Promise.all([
+            page.waitForResponse(res => res.url().includes('/listings') && res.request().method() === 'POST'),
+            submitBtn.click(),
+        ]);
         await page.waitForTimeout(3000);
 
         // should redirect away from /crops after successful submission
         await expect(page.locator('body')).toBeVisible();
+
+        await deleteCreatedListing(page, createResponse);
     });
 });
 

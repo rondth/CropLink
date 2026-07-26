@@ -1,6 +1,19 @@
-import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { test, expect, Page, BrowserContext, APIResponse } from '@playwright/test';
 
 const CROP_NAME = `E2E Msg Crop ${Date.now()}`;
+
+async function deleteCreatedListing(page: Page, createResponse: APIResponse) {
+    if (!createResponse.ok()) return;
+    const created = await createResponse.json();
+    const id = Array.isArray(created) ? created[0]?.id : created?.id;
+    if (!id) return;
+
+    const apiBase = createResponse.url().replace(/\/listings\/?$/, '');
+    const token = await page.evaluate(() => localStorage.getItem('access_token'));
+    await page.request.delete(`${apiBase}/listings/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+}
 const BUYER_MESSAGE = `Hi, is this still available? ${Date.now()}`;
 const SELLER_REPLY = `Yes, still in stock! ${Date.now()}`;
 
@@ -45,6 +58,7 @@ test.describe.serial('Messaging - buyer and seller conversation', () => {
     let buyerPage: Page;
     let sellerPage: Page;
     let conversationUrl = '';
+    let createResponse: APIResponse | null = null;
 
     test.beforeAll(async ({ browser }) => {
         buyerContext = await browser.newContext({ storageState: 'e2e/.auth/buyer.json' });
@@ -54,6 +68,7 @@ test.describe.serial('Messaging - buyer and seller conversation', () => {
     });
 
     test.afterAll(async () => {
+        if (createResponse) await deleteCreatedListing(sellerPage, createResponse);
         await buyerContext.close();
         await sellerContext.close();
     });
@@ -86,7 +101,11 @@ test.describe.serial('Messaging - buyer and seller conversation', () => {
         const harvestedInput = sellerPage.locator('input[name="harvested_at"], input[type="date"]').first();
         if (await harvestedInput.count() > 0) await harvestedInput.fill('2026-06-01');
 
-        await sellerPage.locator('button[type="submit"]').first().click();
+        const [response] = await Promise.all([
+            sellerPage.waitForResponse(res => res.url().includes('/listings') && res.request().method() === 'POST'),
+            sellerPage.locator('button[type="submit"]').first().click(),
+        ]);
+        createResponse = response;
         await sellerPage.waitForTimeout(3000);
     });
 
