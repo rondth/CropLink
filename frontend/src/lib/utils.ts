@@ -1,3 +1,5 @@
+import { getPriceDisplayParts, PriceDisplayListing } from './priceDisplay';
+
 export const PLATFORM_FEE_RATE = 0.02;
 
 export function getCurrencySymbol(currency?: string): string {
@@ -20,14 +22,27 @@ export function calcSubtotal(t: { quantity?: string; listing?: { price?: string 
 }
 
 export function filterProducts(
-    products: { category: string; crop_name: string }[],
+    products: ({ category: string; crop_name: string } & PriceDisplayListing)[],
     selectedCategory: string,
-    searchFilter: string
+    searchFilter: string,
+    priceRange?: { min?: number; max?: number; preferredCurrency?: string | null }
 ) {
     return products.filter(p => {
         const categoryMatch = selectedCategory === 'All' || p.category === selectedCategory;
         const searchMatch = !searchFilter || p.crop_name.toLowerCase().includes(searchFilter.toLowerCase());
-        return categoryMatch && searchMatch;
+
+        let priceMatch = true;
+        if (priceRange && (priceRange.min !== undefined || priceRange.max !== undefined)) {
+            // Filter on the same amount/currency the card actually displays
+            // (converted to the viewer's preferred currency when applicable),
+            // not the listing's raw native-currency price.
+            const displayedAmount = getPriceDisplayParts(p, priceRange.preferredCurrency)?.primary.amount ?? 0;
+            priceMatch =
+                (priceRange.min === undefined || displayedAmount >= priceRange.min) &&
+                (priceRange.max === undefined || displayedAmount <= priceRange.max);
+        }
+
+        return categoryMatch && searchMatch && priceMatch;
     });
 }
 
