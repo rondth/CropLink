@@ -7,9 +7,10 @@ import { supabase } from './supabase';
 export interface User {
   user_id: string;
   email: string;
-  role: 'farmer' | 'buyer' | 'seller' | string; 
+  role: 'farmer' | 'buyer' | 'seller' | string;
   name: string;
   preferred_currency?: string;
+  is_admin?: boolean;
 }
 
 interface AuthContextType {

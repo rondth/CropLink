@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, listings, transaction, reviews, users, messaging, notifications, recommend, distributors
+from app.api.v1 import auth, listings, transaction, reviews, users, messaging, notifications, recommend, distributors, admin
 
 
 app = FastAPI(
@@ -27,6 +27,7 @@ app.include_router(messaging.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(recommend.router, prefix="/api/v1")
 app.include_router(distributors.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
 
 
 @app.get("/")
