@@ -241,6 +241,21 @@ def recompute_trust_score(supabase, user_id: str) -> float:
     return score
 
 
+LOW_STOCK_THRESHOLD_PERCENT = 0.10
+
+
+def compute_is_low_stock(listing: dict) -> bool:
+    """True once a listing's remaining quantity has dropped to/below
+    LOW_STOCK_THRESHOLD_PERCENT of its initial_quantity. Listings without a
+    known initial_quantity (nullable, unset on legacy rows) are never
+    flagged."""
+    initial_quantity = listing.get("initial_quantity")
+    quantity = listing.get("quantity")
+    if not initial_quantity or quantity is None:
+        return False
+    return quantity <= (initial_quantity * LOW_STOCK_THRESHOLD_PERCENT)
+
+
 async def get_subtotal_in_usd(transaction, db) -> float | None:
     currency = transaction.currency or "USD"
     if currency == "USD":

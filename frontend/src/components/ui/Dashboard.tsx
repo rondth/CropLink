@@ -129,7 +129,15 @@ function AllListings({ myListings, onBack, getCurrencySymbol, onEdit, onRemove, 
                                 }[listing.status as 'active' | 'sold' | 'inactive'] || 'bg-gray-300'
                             }`} />
                             <div className="flex-1">
-                                <h4 className="text-xs font-bold text-gray-800">{listing.crop_name}</h4>
+                                <div className="flex items-center gap-1.5">
+                                    <h4 className="text-xs font-bold text-gray-800">{listing.crop_name}</h4>
+                                    {listing.is_low_stock && (
+                                        <span title="Low stock" className="inline-flex items-center gap-1 text-[9px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md shrink-0">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                                            Low Stock
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-[10px] text-gray-400 mt-0.5">{`${listing.quantity} ${listing.unit_of_measurement} available`}</p>
                             </div>
                             <div className="text-right">
@@ -323,6 +331,7 @@ export default function Dashboard() {
     }, [myListings]);
 
     const activeMyListings = myListings.filter(listing => listing.status === 'active');
+    const lowStockCount = myListings.filter(listing => listing.is_low_stock).length;
     const { display, suffix } = formatAmount(monthlyRevenue.amount);
 
     const handleEdit = (listingId: string) => {
@@ -374,6 +383,16 @@ export default function Dashboard() {
                 <h2 className="text-xl font-black text-gray-800">Hello, {user?.name?.split(' ')[0] || 'Seller'}!</h2>
                 <p className="text-xs text-gray-500 mt-0.5">Here's what's happening with your crops.</p>
             </div>
+
+            {/* low stock banner */}
+            {lowStockCount > 0 && (
+                <div className="bg-red-50 rounded-2xl p-3.5 border border-red-200 shadow-sm flex items-center gap-2.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                    <p className="text-xs font-bold text-red-800">
+                        {lowStockCount} listing{lowStockCount !== 1 ? 's' : ''} low on stock
+                    </p>
+                </div>
+            )}
 
             {/* stats */}
             <div className="grid grid-cols-2 gap-3">

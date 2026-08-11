@@ -26,6 +26,9 @@ function HomeContent() {
     const [searchFilter, setSearchFilter] = useState('');
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [minPriceInput, setMinPriceInput] = useState('');
+    const [maxPriceInput, setMaxPriceInput] = useState('');
+    const [appliedPriceRange, setAppliedPriceRange] = useState<{ min?: number; max?: number }>({});
     const ITEMS_PER_PAGE = 6;
     const searchParams = useSearchParams();
 
@@ -59,7 +62,11 @@ function HomeContent() {
             .catch(err => console.error('Failed to load listing from URL:', err));
     }, [searchParams, preferredCurrency]);
 
-    const filteredProducts = filterProducts(products, selectedCategory, searchFilter);
+    const filteredProducts = filterProducts(products, selectedCategory, searchFilter, {
+        min: appliedPriceRange.min,
+        max: appliedPriceRange.max,
+        preferredCurrency,
+    });
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -74,12 +81,27 @@ function HomeContent() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedCategory, searchFilter]);
+    }, [selectedCategory, searchFilter, appliedPriceRange]);
 
     const handleCategorySelect = (category: string) => {
         setSelectedCategory(category);
         setSearchFilter('');
     };
+
+    const applyPriceRange = () => {
+        setAppliedPriceRange({
+            min: minPriceInput.trim() === '' ? undefined : parseFloat(minPriceInput),
+            max: maxPriceInput.trim() === '' ? undefined : parseFloat(maxPriceInput),
+        });
+    };
+
+    const clearPriceRange = () => {
+        setMinPriceInput('');
+        setMaxPriceInput('');
+        setAppliedPriceRange({});
+    };
+
+    const isPriceRangeApplied = appliedPriceRange.min !== undefined || appliedPriceRange.max !== undefined;
 
 
     return (
@@ -89,36 +111,71 @@ function HomeContent() {
                     <ProductDetails product={selectedProduct} onBack={() => setSelectedProduct(null)} />
                 ) : (
                     <>
-                        <Categories 
-                            selectedCategory={selectedCategory} 
-                            onSelectCategory={handleCategorySelect} 
+                        <Categories
+                            selectedCategory={selectedCategory}
+                            onSelectCategory={handleCategorySelect}
                             listings={products}
                             onSearch={setSearchFilter}
+                            priceCurrency={preferredCurrency}
+                            minPriceInput={minPriceInput}
+                            maxPriceInput={maxPriceInput}
+                            onMinPriceChange={setMinPriceInput}
+                            onMaxPriceChange={setMaxPriceInput}
+                            onApplyPrice={applyPriceRange}
+                            onClearPrice={clearPriceRange}
+                            isPriceRangeApplied={isPriceRangeApplied}
                         />
-                        <div className="py-2"></div>
-                        <ProductGrid products={paginatedProducts} onProductClick={setSelectedProduct} />
-                        
-                        {/* page numbers */}
-                        {totalPages > 1 && (
-                            <div className="flex justify-center items-center gap-4 pb-10 mt-2">
-                                <button 
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    className="px-4 py-2 text-[10px] font-bold bg-white border border-gray-100 shadow-sm rounded-xl disabled:opacity-40 text-gray-600 active:scale-95 transition-all"
-                                >
-                                    Previous
-                                </button>
 
-                                <span className="text-[10px] font-bold text-gray-400">Page {currentPage} of {totalPages}</span>
-                                
-                                <button 
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    className="px-4 py-2 text-[10px] font-bold bg-white border border-gray-100 shadow-sm rounded-xl disabled:opacity-40 text-gray-600 active:scale-95 transition-all"
+                        <div className="py-2"></div>
+
+                        {filteredProducts.length === 0 && (searchFilter.trim() !== '' || selectedCategory !== 'All' || isPriceRangeApplied) ? (
+                            <div className="flex flex-col items-center justify-center text-center px-6 py-14 gap-1.5">
+                                <h3 className="text-sm font-black text-gray-800">
+                                    {searchFilter.trim()
+                                        ? `No results for "${searchFilter.trim()}"`
+                                        : isPriceRangeApplied
+                                        ? 'No listings in this price range'
+                                        : 'No listings in this category right now'}
+                                </h3>
+                                <p className="text-xs text-gray-500 max-w-[240px]">
+                                    {searchFilter.trim()
+                                        ? 'Try a different crop name, or clear your search to see everything.'
+                                        : 'Check back later or browse another category.'}
+                                </p>
+                                <button
+                                    onClick={() => { handleCategorySelect('All'); clearPriceRange(); }}
+                                    className="mt-3 px-4 py-2 text-xs font-bold bg-white border border-gray-100 shadow-sm rounded-xl text-CropLink-primary active:scale-95 transition-all"
                                 >
-                                    Next
+                                    View all listings
                                 </button>
                             </div>
+                        ) : (
+                            <>
+                                <ProductGrid products={paginatedProducts} onProductClick={setSelectedProduct} />
+
+                                {/* page numbers */}
+                                {totalPages > 1 && (
+                                    <div className="flex justify-center items-center gap-4 pb-10 mt-2">
+                                        <button
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            className="px-4 py-2 text-[10px] font-bold bg-white border border-gray-100 shadow-sm rounded-xl disabled:opacity-40 text-gray-600 active:scale-95 transition-all"
+                                        >
+                                            Previous
+                                        </button>
+
+                                        <span className="text-[10px] font-bold text-gray-400">Page {currentPage} of {totalPages}</span>
+
+                                        <button
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            className="px-4 py-2 text-[10px] font-bold bg-white border border-gray-100 shadow-sm rounded-xl disabled:opacity-40 text-gray-600 active:scale-95 transition-all"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </>
                 )

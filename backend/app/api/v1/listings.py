@@ -4,7 +4,7 @@ from typing import Optional, Literal
 from datetime import date, datetime, timezone
 from app.core.dependencies import get_current_user, get_current_user_id, get_optional_user_id
 from app.core.supabase import supabase
-from app.utils import get_blocked_user_ids, apply_converted_prices
+from app.utils import get_blocked_user_ids, apply_converted_prices, compute_is_low_stock
 from ml.seasonal import make_recommendation
 
 router = APIRouter(prefix="/listings", tags=["listings"])
@@ -121,10 +121,13 @@ def create_listing(
     response = supabase.table("crops_listings").insert({
         **dump,
         "seller_id": user_id,
-        "status": "active"
+        "status": "active",
+        "initial_quantity": dump["quantity"]
     }).execute()
 
-    return response.data[0]
+    listing = response.data[0]
+    listing["is_low_stock"] = compute_is_low_stock(listing)
+    return listing
 
 # GET /listings
 @router.get("/")
@@ -153,7 +156,10 @@ def get_listings(user_id: Optional[str] = Depends(get_optional_user_id), target_
 @router.get("/me")
 def get_my_listings(user_id: str = Depends(get_current_user_id), user: dict = Depends(get_current_user)):
     response = supabase.table("crops_listings").select("*").eq("seller_id", user_id).execute()
-    return response.data
+    listings = response.data
+    for listing in listings:
+        listing["is_low_stock"] = compute_is_low_stock(listing)
+    return listings
 
 # PATCH /listings/{listing_id}
 @router.patch("/{listing_id}")
@@ -184,7 +190,9 @@ def update_listing(
         raise HTTPException(status_code=422, detail="Minimum order quantity cannot exceed quantity")
 
     response = supabase.table("crops_listings").update(dump).eq("id", listing_id).execute()
-    return response.data[0]
+    listing = response.data[0]
+    listing["is_low_stock"] = compute_is_low_stock(listing)
+    return listing
 
 # DELETE /listings/{listing_id}
 @router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -432,6 +440,7 @@ def get_listing(listing_id: str, target_currency: Optional[str] = None):
         raise HTTPException(status_code=404, detail="Listing not found")
 
     listing = response.data[0]
+    listing["is_low_stock"] = compute_is_low_stock(listing)
 
     seller_id = listing.get("seller_id")
     if seller_id:
