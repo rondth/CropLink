@@ -42,6 +42,8 @@ def supabase_mock(monkeypatch):
     monkeypatch.setattr("app.api.v1.transaction.supabase", mock)
     monkeypatch.setattr("app.api.v1.messaging.supabase", mock)
     monkeypatch.setattr("app.api.v1.distributors.supabase", mock)
+    monkeypatch.setattr("app.api.v1.admin.supabase", mock)
+    monkeypatch.setattr("app.core.dependencies.supabase", mock)
     return mock
 
 

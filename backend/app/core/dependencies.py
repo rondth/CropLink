@@ -4,6 +4,7 @@ from jose import jwt, JWTError
 import json
 from typing import Optional
 from app.core.config import settings
+from app.core.supabase import supabase
 
 bearer_scheme = HTTPBearer()
 
@@ -33,6 +34,13 @@ def get_current_user(
 
 def get_current_user_id(user: dict = Depends(get_current_user)) -> str:
     return user["sub"]
+
+def get_current_admin_id(user_id: str = Depends(get_current_user_id)) -> str:
+    profile = supabase.table("profiles").select("is_admin").eq("user_id", user_id).execute()
+    if not profile.data or not profile.data[0].get("is_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return user_id
+
 
 def get_optional_user_id(request: Request) -> Optional[str]:
     """Like get_current_user_id, but returns None instead of raising for

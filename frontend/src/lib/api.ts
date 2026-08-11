@@ -246,3 +246,40 @@ export const getRecommendedDistributors = async (
     const response = await api.get<RecommendedDistributor[]>('/distributors/recommended', { params: { limit } });
     return response.data;
 }
+
+// ====== Admin API ======
+
+export interface AdminReportProfile {
+    user_id: string;
+    name: string | null;
+    profile_picture_url: string | null;
+}
+
+export interface AdminReport {
+    id: string;
+    reporter: AdminReportProfile | null;
+    reported: AdminReportProfile | null;
+    reason: string;
+    status: 'pending' | 'reviewed' | 'dismissed';
+    action_taken: string | null;
+    resolved_by: string | null;
+    resolved_at: string | null;
+    created_at: string | null;
+}
+
+export const getAdminReports = async (
+    statusFilter?: 'pending' | 'reviewed' | 'dismissed'
+): Promise<AdminReport[]> => {
+    const response = await api.get<AdminReport[]>('/admin/reports', {
+        params: statusFilter ? { status_filter: statusFilter } : {},
+    });
+    return response.data;
+}
+
+export const updateAdminReportStatus = async (
+    reportId: string,
+    data: { status: 'reviewed' | 'dismissed' | 'pending'; action_taken?: string }
+): Promise<AdminReport> => {
+    const response = await api.patch<AdminReport>(`/admin/reports/${reportId}`, data);
+    return response.data;
+}
